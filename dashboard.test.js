@@ -38,8 +38,8 @@ test("extract stop locations and station ids from EFA responses", function () {
     stopFinder: {
       points: {
         point: [
-          { anyType: "Station", extId: "de:09162:100", name: "Haderner Stern" },
-          { anyType: "STOP", stopId: "de:09162:200", name: "Gondrellplatz" }
+          { anyType: "Station", extId: "de:09162:100", name: "Münchner Freiheit" },
+          { anyType: "STOP", stopId: "de:09162:200", name: "Hauptbahnhof Nord" }
         ]
       }
     }
@@ -69,7 +69,7 @@ test("normalize departures keeps line numbers, transport mode and departure time
   };
   const rawBus = {
     transportation: { number: "56", classId: 5 },
-    destination: { name: "Stiftsbogen" },
+    destination: { name: "Laimer Platz" },
     dateTime: { date: "2026-07-20", time: "10:10:00" },
     realDateTime: { date: "2026-07-20", time: "10:11:00" }
   };
@@ -150,8 +150,16 @@ test("extract departures from nested and flat API response shapes", function () 
 
 test("location id extraction supports nested ref ids", function () {
   const hooks = loadHooks();
-  const location = { name: "Stiftsbogen", ref: { id: "de:09162:300" } };
+  const location = { name: "Laimer Platz", ref: { id: "de:09162:300" } };
   assert.equal(hooks.locationId(location), "de:09162:300");
+});
+
+test("weather icon mapping returns monochrome symbols", function () {
+  const hooks = loadHooks();
+  assert.equal(hooks.weatherIcon(0), "☀");
+  assert.equal(hooks.weatherIcon(3), "☁");
+  assert.equal(hooks.weatherIcon(61), "☂");
+  assert.equal(hooks.weatherIcon(95), "⚡");
 });
 
 test("filter Munich public holidays excludes Augsburg Friedensfest", function () {

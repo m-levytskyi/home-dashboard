@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="format-detection" content="telephone=no">
-  <title>Hadern-Anzeige</title>
+  <title>München Dashboard</title>
   <style>
     html, body {
       margin: 0;
@@ -71,33 +71,50 @@
     }
 
     .weather-main {
-      display: table;
-      width: 100%;
-      table-layout: fixed;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
     }
 
-    .weather-temp,
-    .weather-copy {
-      display: table-cell;
-      vertical-align: middle;
+    .weather-now {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .weather-icon {
+      font-size: 38px;
+      line-height: 1;
+      width: 42px;
+      text-align: center;
     }
 
     .weather-temp {
-      width: 42%;
-      font-size: 70px;
-      font-weight: 300;
-      letter-spacing: -4px;
+      font-size: 72px;
+      font-weight: 500;
+      letter-spacing: -3px;
+      line-height: .95;
+      color: #000;
       white-space: nowrap;
     }
 
-    .weather-copy {
-      padding-left: 16px;
+    .weather-range {
+      text-align: right;
+      min-width: 92px;
     }
 
-    #weather-description {
-      font-size: 25px;
-      line-height: 1.2;
-      margin-bottom: 8px;
+    .range-high,
+    .range-low {
+      font-size: 24px;
+      line-height: 1.1;
+      color: #292925;
+    }
+
+    .range-low {
+      color: #5f5f58;
+      margin-top: 6px;
     }
 
     .muted {
@@ -115,7 +132,7 @@
 
     .weather-detail {
       display: table-cell;
-      width: 20%;
+      width: 33%;
       padding-right: 8px;
     }
 
@@ -150,12 +167,18 @@
     .hour-time {
       color: #707069;
       font-size: 12px;
-      margin-bottom: 7px;
+      margin-bottom: 6px;
+    }
+
+    .hour-icon {
+      font-size: 20px;
+      line-height: 1;
+      margin-bottom: 5px;
     }
 
     .hour-temp {
       font-size: 18px;
-      margin-bottom: 5px;
+      margin-bottom: 0;
     }
 
     .hour-rain {
@@ -252,8 +275,9 @@
     @media (max-width: 500px) {
       body { padding: 20px; }
       #time { font-size: 68px; }
-      .weather-temp { font-size: 58px; width: 39%; }
-      #weather-description { font-size: 21px; }
+      .weather-temp { font-size: 58px; }
+      .weather-icon { font-size: 32px; width: 36px; }
+      .range-high, .range-low { font-size: 20px; }
       .weather-detail strong { font-size: 16px; }
       .info-pair, .info-card { display: block; width: 100%; }
       .info-card { padding: 0 0 20px; }
@@ -269,36 +293,31 @@
     </header>
 
     <section class="section">
-      <div class="label">Wetter · Hadern</div>
+      <div class="label">Wetter · München</div>
 
       <div class="weather-main">
-        <div class="weather-temp" id="temperature">--°</div>
-        <div class="weather-copy">
-          <div id="weather-description">Wetter wird geladen…</div>
-          <div class="muted" id="weather-summary"></div>
+        <div class="weather-now">
+          <div class="weather-icon" id="weather-icon">○</div>
+          <div class="weather-temp" id="temperature">--°</div>
+        </div>
+        <div class="weather-range">
+          <div class="range-high" id="temp-high">--°</div>
+          <div class="range-low" id="temp-low">--°</div>
         </div>
       </div>
 
       <div class="weather-details">
         <div class="weather-detail">
-          <strong id="feels-like">--°</strong>
-          <span>Gefühlt</span>
-        </div>
-        <div class="weather-detail">
           <strong id="rain-now">--%</strong>
-          <span>Regen</span>
+          <span>Regen heute</span>
         </div>
         <div class="weather-detail">
           <strong id="wind">-- km/h</strong>
-          <span>Wind</span>
+          <span>Wind max</span>
         </div>
         <div class="weather-detail">
           <strong id="uv-index">--</strong>
-          <span>UV-Index</span>
-        </div>
-        <div class="weather-detail">
-          <strong id="sunset">--:--</strong>
-          <span>Sonnenuntergang</span>
+          <span>UV max</span>
         </div>
       </div>
 
@@ -308,29 +327,24 @@
     <section class="section">
       <div class="info-pair">
         <div class="info-card">
-          <div class="label">Feiertag · Bayern</div>
+          <div class="label">Feiertag · München</div>
           <div id="public-holiday" class="loading">Feiertage werden geladen…</div>
         </div>
         <div class="info-card">
-          <div class="label">Schulferien · Bayern</div>
+          <div class="label">Schulferien · München</div>
           <div id="school-holiday" class="loading">Schulferien werden geladen…</div>
         </div>
       </div>
     </section>
 
     <section class="section">
-      <div class="label">U6 · Haderner Stern</div>
+      <div class="label">U6</div>
       <div id="departures-u6" class="loading">Abfahrten werden geladen…</div>
     </section>
 
     <section class="section">
-      <div class="label">Tram · Gondrellplatz</div>
+      <div class="label">Tram</div>
       <div id="departures-tram" class="loading">Abfahrten werden geladen…</div>
-    </section>
-
-    <section class="section">
-      <div class="label">Bus · Stiftsbogen</div>
-      <div id="departures-bus" class="loading">Abfahrten werden geladen…</div>
     </section>
 
     <div id="updated">Wird gestartet…</div>
@@ -343,9 +357,9 @@
       var WEATHER_URL =
         "https://api.open-meteo.com/v1/forecast" +
         "?latitude=48.113&longitude=11.481" +
-        "&current=temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m" +
-        "&hourly=temperature_2m,precipitation_probability,weather_code,uv_index" +
-        "&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,uv_index_max" +
+        "&current=temperature_2m,weather_code" +
+        "&hourly=temperature_2m,weather_code,uv_index" +
+        "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,wind_speed_10m_max" +
         "&timezone=Europe%2FBerlin&forecast_days=3";
 
       var TRANSPORT_BASE = "https://efa.mvv-muenchen.de/ng";
@@ -353,23 +367,16 @@
 
       var stopConfigs = [
         {
-          query: "Haderner Stern, München",
+          query: "Münchner Freiheit, München",
           target: "departures-u6",
           mode: "subway",
           line: "U6",
           maximum: 5
         },
         {
-          query: "Gondrellplatz, München",
+          query: "Hauptbahnhof Nord, München",
           target: "departures-tram",
           mode: "tram",
-          line: "",
-          maximum: 5
-        },
-        {
-          query: "Stiftsbogen, München",
-          target: "departures-bus",
-          mode: "bus",
           line: "",
           maximum: 5
         }
@@ -466,12 +473,19 @@
         return labels[code] || "Wetter";
       }
 
-      function uvText(value) {
-        if (value < 3) return "niedrig";
-        if (value < 6) return "mittel";
-        if (value < 8) return "hoch";
-        if (value < 11) return "sehr hoch";
-        return "extrem";
+      function weatherIcon(code) {
+        var value = Number(code);
+        if (value === 0 || value === 1) return "☀";
+        if (value === 2) return "⛅";
+        if (value === 3) return "☁";
+        if (value === 45 || value === 48) return "🌫";
+        if ((value >= 51 && value <= 67) || (value >= 80 && value <= 82)) {
+          return "☂";
+        }
+        if (value >= 71 && value <= 77) return "❄";
+        if (value === 85 || value === 86) return "❄";
+        if (value >= 95) return "⚡";
+        return "○";
       }
 
       function timeFromISO(value) {
@@ -498,10 +512,15 @@
       function loadWeather() {
         requestJSON(WEATHER_URL, function (error, data) {
           if (error || !data || !data.current) {
-            document.getElementById("weather-description").innerHTML =
-              "Wetter nicht verfügbar";
-            document.getElementById("weather-summary").innerHTML =
-              "Internetverbindung prüfen.";
+            document.getElementById("weather-icon").innerHTML = "○";
+            document.getElementById("temperature").innerHTML = "--°";
+            document.getElementById("temp-high").innerHTML = "--°";
+            document.getElementById("temp-low").innerHTML = "--°";
+            document.getElementById("rain-now").innerHTML = "--%";
+            document.getElementById("wind").innerHTML = "-- km/h";
+            document.getElementById("uv-index").innerHTML = "--";
+            document.getElementById("hourly-weather").innerHTML =
+              '<div class="error">Wetter nicht verfügbar.</div>';
             return;
           }
 
@@ -510,38 +529,31 @@
           var hourly = data.hourly;
           var high = Math.round(daily.temperature_2m_max[0]);
           var low = Math.round(daily.temperature_2m_min[0]);
+          var uvMax = daily.uv_index_max && daily.uv_index_max.length ?
+            daily.uv_index_max[0] : 0;
+          var windMax = daily.wind_speed_10m_max && daily.wind_speed_10m_max.length ?
+            daily.wind_speed_10m_max[0] : 0;
+          var rainToday = daily.precipitation_probability_max &&
+            daily.precipitation_probability_max.length ?
+            daily.precipitation_probability_max[0] : 0;
 
           document.getElementById("temperature").innerHTML =
             Math.round(current.temperature_2m) + "°";
-
-          document.getElementById("weather-description").innerHTML =
+          document.getElementById("weather-icon").innerHTML =
+            weatherIcon(current.weather_code);
+          document.getElementById("weather-icon").title =
             weatherText(current.weather_code);
-
-          document.getElementById("weather-summary").innerHTML =
-            "Höchstwert " + high + "° · Tiefstwert " + low + "° · " +
-            "Heute " + daily.precipitation_probability_max[0] + "% Regen";
-
-          document.getElementById("feels-like").innerHTML =
-            Math.round(current.apparent_temperature) + "°";
+          document.getElementById("temp-high").innerHTML = high + "°";
+          document.getElementById("temp-low").innerHTML = low + "°";
 
           document.getElementById("rain-now").innerHTML =
-            current.precipitation_probability + "%";
+            Math.round(rainToday) + "%";
 
           document.getElementById("wind").innerHTML =
-            Math.round(current.wind_speed_10m) + " km/h";
+            Math.round(windMax) + " km/h";
 
-          var uvNow = hourly.uv_index && hourly.uv_index.length ?
-            hourly.uv_index[findCurrentHourIndex(hourly.time)] : 0;
-          var uvMax = daily.uv_index_max && daily.uv_index_max.length ?
-            daily.uv_index_max[0] : uvNow;
           document.getElementById("uv-index").innerHTML =
-            Math.round(uvNow * 10) / 10;
-          document.getElementById("uv-index").title =
-            "Aktuell " + uvText(uvNow) + ", Tagesmaximum " +
             (Math.round(uvMax * 10) / 10);
-
-          document.getElementById("sunset").innerHTML =
-            timeFromISO(daily.sunset[0]);
 
           var start = findCurrentHourIndex(hourly.time);
           var output = "";
@@ -553,11 +565,11 @@
                 '<div class="hour-time">' +
                   (i === start ? "Jetzt" : timeFromISO(hourly.time[i])) +
                 '</div>' +
+                '<div class="hour-icon">' +
+                  weatherIcon(hourly.weather_code[i]) +
+                '</div>' +
                 '<div class="hour-temp">' +
                   Math.round(hourly.temperature_2m[i]) + "°" +
-                '</div>' +
-                '<div class="hour-rain">' +
-                  hourly.precipitation_probability[i] + "% Regen" +
                 '</div>' +
               '</div>';
           }
@@ -1172,6 +1184,7 @@
           matchesConfig: matchesConfig,
           lineName: lineName,
           departureDate: departureDate,
+          weatherIcon: weatherIcon,
           filterMunichPublicHolidays: filterMunichPublicHolidays,
           isMunichPublicHoliday: isMunichPublicHoliday
         };
