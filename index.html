@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="format-detection" content="telephone=no">
+  <title>Hadern-Anzeige</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+      background: #f3f0e9;
+      color: #191919;
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      padding: 28px;
+      overflow-x: hidden;
+    }
+
+    #dashboard {
+      max-width: 760px;
+      margin: 0 auto;
+      position: relative;
+      -webkit-transition: -webkit-transform 1.2s ease;
+      transition: transform 1.2s ease;
+    }
+
+    .top {
+      border-bottom: 1px solid rgba(0,0,0,.18);
+      padding-bottom: 22px;
+      margin-bottom: 25px;
+    }
+
+    #time {
+      font-size: 82px;
+      font-weight: 300;
+      letter-spacing: -5px;
+      line-height: .95;
+    }
+
+    #date {
+      margin-top: 12px;
+      font-size: 22px;
+      font-weight: 400;
+      color: #5b5b55;
+    }
+
+    .section {
+      border-bottom: 1px solid rgba(0,0,0,.18);
+      padding: 0 0 24px;
+      margin: 0 0 24px;
+    }
+
+    .section:last-child { border-bottom: 0; }
+
+    .label {
+      margin-bottom: 14px;
+      color: #686861;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .weather-main {
+      display: table;
+      width: 100%;
+      table-layout: fixed;
+    }
+
+    .weather-temp,
+    .weather-copy {
+      display: table-cell;
+      vertical-align: middle;
+    }
+
+    .weather-temp {
+      width: 42%;
+      font-size: 70px;
+      font-weight: 300;
+      letter-spacing: -4px;
+      white-space: nowrap;
+    }
+
+    .weather-copy {
+      padding-left: 16px;
+    }
+
+    #weather-description {
+      font-size: 25px;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .muted {
+      color: #676760;
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
+    .weather-details {
+      display: table;
+      width: 100%;
+      table-layout: fixed;
+      margin-top: 22px;
+    }
+
+    .weather-detail {
+      display: table-cell;
+      width: 20%;
+      padding-right: 8px;
+    }
+
+    .weather-detail strong {
+      display: block;
+      font-size: 19px;
+      font-weight: 500;
+      margin-bottom: 3px;
+    }
+
+    .weather-detail span {
+      color: #73736c;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+    }
+
+    .hourly {
+      white-space: nowrap;
+      overflow: hidden;
+      margin-top: 22px;
+    }
+
+    .hour {
+      display: inline-block;
+      width: 72px;
+      margin-right: 9px;
+      text-align: center;
+      vertical-align: top;
+    }
+
+    .hour-time {
+      color: #707069;
+      font-size: 12px;
+      margin-bottom: 7px;
+    }
+
+    .hour-temp {
+      font-size: 18px;
+      margin-bottom: 5px;
+    }
+
+    .hour-rain {
+      color: #676760;
+      font-size: 12px;
+    }
+
+
+    .info-pair {
+      display: table;
+      width: 100%;
+      table-layout: fixed;
+    }
+
+    .info-card {
+      display: table-cell;
+      width: 50%;
+      vertical-align: top;
+      padding-right: 24px;
+    }
+
+    .info-card:last-child { padding-right: 0; }
+
+    .info-title {
+      font-size: 20px;
+      line-height: 1.25;
+      margin-bottom: 6px;
+    }
+
+    .info-date {
+      color: #62625c;
+      font-size: 16px;
+      line-height: 1.4;
+    }
+
+    .info-note {
+      color: #85857d;
+      font-size: 12px;
+      margin-top: 5px;
+    }
+
+    .departures {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .departures td {
+      padding: 10px 0;
+      border-top: 1px solid rgba(0,0,0,.09);
+      vertical-align: middle;
+    }
+
+    .departures tr:first-child td { border-top: 0; }
+
+    .line {
+      width: 68px;
+      font-size: 19px;
+      font-weight: 600;
+    }
+
+    .destination {
+      font-size: 17px;
+      padding-right: 8px !important;
+    }
+
+    .minutes {
+      width: 72px;
+      text-align: right;
+      font-size: 18px;
+      white-space: nowrap;
+    }
+
+    .late {
+      display: block;
+      color: #846135;
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    .error, .loading {
+      color: #74746c;
+      font-size: 15px;
+      line-height: 1.5;
+      padding: 8px 0;
+    }
+
+    #updated {
+      text-align: center;
+      color: #86867f;
+      font-size: 11px;
+      padding: 5px 0 12px;
+    }
+
+    @media (max-width: 500px) {
+      body { padding: 20px; }
+      #time { font-size: 68px; }
+      .weather-temp { font-size: 58px; width: 39%; }
+      #weather-description { font-size: 21px; }
+      .weather-detail strong { font-size: 16px; }
+      .info-pair, .info-card { display: block; width: 100%; }
+      .info-card { padding: 0 0 20px; }
+      .info-card:last-child { padding-bottom: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main id="dashboard">
+    <header class="top">
+      <div id="time">--:--</div>
+      <div id="date">Wird geladen…</div>
+    </header>
+
+    <section class="section">
+      <div class="label">Wetter · Hadern</div>
+
+      <div class="weather-main">
+        <div class="weather-temp" id="temperature">--°</div>
+        <div class="weather-copy">
+          <div id="weather-description">Wetter wird geladen…</div>
+          <div class="muted" id="weather-summary"></div>
+        </div>
+      </div>
+
+      <div class="weather-details">
+        <div class="weather-detail">
+          <strong id="feels-like">--°</strong>
+          <span>Gefühlt</span>
+        </div>
+        <div class="weather-detail">
+          <strong id="rain-now">--%</strong>
+          <span>Regen</span>
+        </div>
+        <div class="weather-detail">
+          <strong id="wind">-- km/h</strong>
+          <span>Wind</span>
+        </div>
+        <div class="weather-detail">
+          <strong id="uv-index">--</strong>
+          <span>UV-Index</span>
+        </div>
+        <div class="weather-detail">
+          <strong id="sunset">--:--</strong>
+          <span>Sonnenuntergang</span>
+        </div>
+      </div>
+
+      <div class="hourly" id="hourly-weather"></div>
+    </section>
+
+    <section class="section">
+      <div class="info-pair">
+        <div class="info-card">
+          <div class="label">Feiertag · Bayern</div>
+          <div id="public-holiday" class="loading">Feiertage werden geladen…</div>
+        </div>
+        <div class="info-card">
+          <div class="label">Schulferien · Bayern</div>
+          <div id="school-holiday" class="loading">Schulferien werden geladen…</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="label">U6 · Haderner Stern</div>
+      <div id="departures-u6" class="loading">Abfahrten werden geladen…</div>
+    </section>
+
+    <section class="section">
+      <div class="label">Tram · Gondrellplatz</div>
+      <div id="departures-tram" class="loading">Abfahrten werden geladen…</div>
+    </section>
+
+    <section class="section">
+      <div class="label">Bus · Stiftsbogen</div>
+      <div id="departures-bus" class="loading">Abfahrten werden geladen…</div>
+    </section>
+
+    <div id="updated">Wird gestartet…</div>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var WEATHER_URL =
+        "https://api.open-meteo.com/v1/forecast" +
+        "?latitude=48.113&longitude=11.481" +
+        "&current=temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m" +
+        "&hourly=temperature_2m,precipitation_probability,weather_code,uv_index" +
+        "&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,uv_index_max" +
+        "&timezone=Europe%2FBerlin&forecast_days=3";
+
+      var TRANSPORT_BASE = "https://v6.db.transport.rest";
+      var HOLIDAY_BASE = "https://openholidaysapi.org";
+
+      var stopConfigs = [
+        {
+          query: "Haderner Stern, München",
+          target: "departures-u6",
+          mode: "subway",
+          line: "U6",
+          maximum: 5
+        },
+        {
+          query: "Gondrellplatz, München",
+          target: "departures-tram",
+          mode: "tram",
+          line: "",
+          maximum: 5
+        },
+        {
+          query: "Stiftsbogen, München",
+          target: "departures-bus",
+          mode: "bus",
+          line: "",
+          maximum: 5
+        }
+      ];
+
+      var resolvedStops = {};
+
+      function requestJSON(url, callback) {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", url, true);
+        xhr.timeout = 15000;
+
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState !== 4) return;
+
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              callback(null, JSON.parse(xhr.responseText));
+            } catch (error) {
+              callback(new Error("Ungültige Antwort"));
+            }
+          } else {
+            callback(new Error("Anfrage fehlgeschlagen: " + xhr.status));
+          }
+        };
+
+        xhr.onerror = function () {
+          callback(new Error("Netzwerkfehler"));
+        };
+
+        xhr.ontimeout = function () {
+          callback(new Error("Zeitüberschreitung"));
+        };
+
+        xhr.send();
+      }
+
+      function pad(number) {
+        return number < 10 ? "0" + number : String(number);
+      }
+
+      function updateClock() {
+        var now = new Date();
+        var days = [
+          "Sonntag", "Montag", "Dienstag", "Mittwoch",
+          "Donnerstag", "Freitag", "Samstag"
+        ];
+        var months = [
+          "Januar", "Februar", "März", "April", "Mai", "Juni",
+          "Juli", "August", "September", "Oktober", "November", "Dezember"
+        ];
+
+        document.getElementById("time").innerHTML =
+          pad(now.getHours()) + ":" + pad(now.getMinutes());
+
+        document.getElementById("date").innerHTML =
+          days[now.getDay()] + ", " +
+          now.getDate() + " " +
+          months[now.getMonth()] + " " +
+          now.getFullYear();
+      }
+
+      function weatherText(code) {
+        var labels = {
+          0: "Klar",
+          1: "Überwiegend klar",
+          2: "Teilweise bewölkt",
+          3: "Bedeckt",
+          45: "Nebel",
+          48: "Raureifnebel",
+          51: "Leichter Nieselregen",
+          53: "Nieselregen",
+          55: "Starker Nieselregen",
+          56: "Gefrierender Nieselregen",
+          57: "Starker gefrierender Nieselregen",
+          61: "Leichter Regen",
+          63: "Regen",
+          65: "Starker Regen",
+          66: "Gefrierender Regen",
+          67: "Starker gefrierender Regen",
+          71: "Leichter Schneefall",
+          73: "Schneefall",
+          75: "Starker Schneefall",
+          77: "Schneegriesel",
+          80: "Leichte Regenschauer",
+          81: "Regenschauer",
+          82: "Starke Regenschauer",
+          85: "Schneeschauer",
+          86: "Starke Schneeschauer",
+          95: "Gewitter",
+          96: "Gewitter mit Hagel",
+          99: "Starkes Gewitter"
+        };
+        return labels[code] || "Wetter";
+      }
+
+      function uvText(value) {
+        if (value < 3) return "niedrig";
+        if (value < 6) return "mittel";
+        if (value < 8) return "hoch";
+        if (value < 11) return "sehr hoch";
+        return "extrem";
+      }
+
+      function timeFromISO(value) {
+        if (!value) return "--:--";
+        var match = /T(\d\d:\d\d)/.exec(value);
+        return match ? match[1] : "--:--";
+      }
+
+      function findCurrentHourIndex(times) {
+        var now = new Date();
+        var key =
+          now.getFullYear() + "-" +
+          pad(now.getMonth() + 1) + "-" +
+          pad(now.getDate()) + "T" +
+          pad(now.getHours()) + ":00";
+
+        var i;
+        for (i = 0; i < times.length; i++) {
+          if (times[i] === key) return i;
+        }
+        return 0;
+      }
+
+      function loadWeather() {
+        requestJSON(WEATHER_URL, function (error, data) {
+          if (error || !data || !data.current) {
+            document.getElementById("weather-description").innerHTML =
+              "Wetter nicht verfügbar";
+            document.getElementById("weather-summary").innerHTML =
+              "Internetverbindung prüfen.";
+            return;
+          }
+
+          var current = data.current;
+          var daily = data.daily;
+          var hourly = data.hourly;
+          var high = Math.round(daily.temperature_2m_max[0]);
+          var low = Math.round(daily.temperature_2m_min[0]);
+
+          document.getElementById("temperature").innerHTML =
+            Math.round(current.temperature_2m) + "°";
+
+          document.getElementById("weather-description").innerHTML =
+            weatherText(current.weather_code);
+
+          document.getElementById("weather-summary").innerHTML =
+            "Höchstwert " + high + "° · Tiefstwert " + low + "° · " +
+            "Heute " + daily.precipitation_probability_max[0] + "% Regen";
+
+          document.getElementById("feels-like").innerHTML =
+            Math.round(current.apparent_temperature) + "°";
+
+          document.getElementById("rain-now").innerHTML =
+            current.precipitation_probability + "%";
+
+          document.getElementById("wind").innerHTML =
+            Math.round(current.wind_speed_10m) + " km/h";
+
+          var uvNow = hourly.uv_index && hourly.uv_index.length ?
+            hourly.uv_index[findCurrentHourIndex(hourly.time)] : 0;
+          var uvMax = daily.uv_index_max && daily.uv_index_max.length ?
+            daily.uv_index_max[0] : uvNow;
+          document.getElementById("uv-index").innerHTML =
+            Math.round(uvNow * 10) / 10;
+          document.getElementById("uv-index").title =
+            "Aktuell " + uvText(uvNow) + ", Tagesmaximum " +
+            (Math.round(uvMax * 10) / 10);
+
+          document.getElementById("sunset").innerHTML =
+            timeFromISO(daily.sunset[0]);
+
+          var start = findCurrentHourIndex(hourly.time);
+          var output = "";
+          var i;
+
+          for (i = start; i < start + 8 && i < hourly.time.length; i++) {
+            output +=
+              '<div class="hour">' +
+                '<div class="hour-time">' +
+                  (i === start ? "Jetzt" : timeFromISO(hourly.time[i])) +
+                '</div>' +
+                '<div class="hour-temp">' +
+                  Math.round(hourly.temperature_2m[i]) + "°" +
+                '</div>' +
+                '<div class="hour-rain">' +
+                  hourly.precipitation_probability[i] + "% Regen" +
+                '</div>' +
+              '</div>';
+          }
+
+          document.getElementById("hourly-weather").innerHTML = output;
+          setUpdated();
+        });
+      }
+
+      function localDateString(date) {
+        return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" +
+          pad(date.getDate());
+      }
+
+      function parseDateOnly(value) {
+        var parts = String(value).split("-");
+        return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      }
+
+      function formatDate(value) {
+        var date = typeof value === "string" ? parseDateOnly(value) : value;
+        return pad(date.getDate()) + "." + pad(date.getMonth() + 1) + "." +
+          date.getFullYear();
+      }
+
+      function daysBetween(first, second) {
+        var a = new Date(first.getFullYear(), first.getMonth(), first.getDate());
+        var b = new Date(second.getFullYear(), second.getMonth(), second.getDate());
+        return Math.round((b.getTime() - a.getTime()) / 86400000);
+      }
+
+      function localizedHolidayName(item) {
+        var names = item.name || [];
+        var i;
+        for (i = 0; i < names.length; i++) {
+          if (String(names[i].language).toLowerCase() === "de") {
+            return names[i].text;
+          }
+        }
+        return names.length ? names[0].text : "Unbenannt";
+      }
+
+      function renderHoliday(targetId, items, school) {
+        var today = new Date();
+        today = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        var active = null;
+        var next = null;
+        var i;
+
+        for (i = 0; i < items.length; i++) {
+          var start = parseDateOnly(items[i].startDate);
+          var end = parseDateOnly(items[i].endDate);
+          if (start <= today && end >= today) {
+            active = items[i];
+            break;
+          }
+          if (start > today && (!next || start < parseDateOnly(next.startDate))) {
+            next = items[i];
+          }
+        }
+
+        var item = active || next;
+        if (!item) {
+          document.getElementById(targetId).innerHTML =
+            '<div class="error">Keine Termine verfügbar.</div>';
+          return;
+        }
+
+        var startDate = parseDateOnly(item.startDate);
+        var endDate = parseDateOnly(item.endDate);
+        var name = localizedHolidayName(item);
+        var dateText = formatDate(startDate);
+        if (school || item.startDate !== item.endDate) {
+          dateText = formatDate(startDate) + "–" + formatDate(endDate);
+        }
+
+        var note;
+        if (active) {
+          note = school ? "Ferien laufen derzeit" : "Heute";
+        } else {
+          var days = daysBetween(today, startDate);
+          note = "In " + days + (days === 1 ? " Tag" : " Tagen");
+        }
+
+        document.getElementById(targetId).innerHTML =
+          '<div class="info-title">' + escapeHTML(name) + '</div>' +
+          '<div class="info-date">' + dateText + '</div>' +
+          '<div class="info-note">' + note + '</div>';
+      }
+
+      function loadHolidays() {
+        var today = new Date();
+        var until = new Date(today.getFullYear() + 1, today.getMonth() + 2, today.getDate());
+        var common =
+          "?countryIsoCode=DE" +
+          "&subdivisionCode=DE-BY" +
+          "&languageIsoCode=DE" +
+          "&validFrom=" + localDateString(today) +
+          "&validTo=" + localDateString(until);
+
+        requestJSON(HOLIDAY_BASE + "/PublicHolidays" + common, function (error, data) {
+          if (error || !data) {
+            document.getElementById("public-holiday").innerHTML =
+              '<div class="error">Feiertage nicht verfügbar.</div>';
+            return;
+          }
+          renderHoliday("public-holiday", data, false);
+          setUpdated();
+        });
+
+        requestJSON(HOLIDAY_BASE + "/SchoolHolidays" + common, function (error, data) {
+          if (error || !data) {
+            document.getElementById("school-holiday").innerHTML =
+              '<div class="error">Schulferien nicht verfügbar.</div>';
+            return;
+          }
+          renderHoliday("school-holiday", data, true);
+          setUpdated();
+        });
+      }
+
+      function productMode(departure) {
+        var product = departure.line && departure.line.product ?
+          String(departure.line.product).toLowerCase() : "";
+
+        var mode = departure.line && departure.line.mode ?
+          String(departure.line.mode).toLowerCase() : "";
+
+        var name = departure.line && departure.line.name ?
+          String(departure.line.name).toUpperCase() : "";
+
+        if (product === "subway" || mode === "subway" || /^U\d+/.test(name)) {
+          return "subway";
+        }
+        if (product === "tram" || mode === "tram") {
+          return "tram";
+        }
+        if (product === "bus" || mode === "bus") {
+          return "bus";
+        }
+        return product || mode;
+      }
+
+      function matchesConfig(departure, config) {
+        var name = departure.line && departure.line.name ?
+          String(departure.line.name).toUpperCase().replace(/\s/g, "") : "";
+
+        if (config.line &&
+            name !== config.line.toUpperCase().replace(/\s/g, "")) {
+          return false;
+        }
+
+        return productMode(departure) === config.mode;
+      }
+
+      function departureDate(departure) {
+        var value =
+          departure.when ||
+          departure.plannedWhen ||
+          departure.departure ||
+          departure.plannedDeparture;
+
+        return value ? new Date(value) : null;
+      }
+
+      function minutesUntil(date) {
+        if (!date || isNaN(date.getTime())) return null;
+        return Math.max(0, Math.round((date.getTime() - new Date().getTime()) / 60000));
+      }
+
+      function delayMinutes(departure) {
+        if (typeof departure.delay === "number") {
+          return Math.round(departure.delay / 60);
+        }
+
+        var actual = departure.when || departure.departure;
+        var planned = departure.plannedWhen || departure.plannedDeparture;
+
+        if (actual && planned) {
+          return Math.max(
+            0,
+            Math.round((new Date(actual).getTime() -
+              new Date(planned).getTime()) / 60000)
+          );
+        }
+
+        return 0;
+      }
+
+      function lineName(departure) {
+        if (departure.line) {
+          return departure.line.name ||
+            departure.line.fahrtNr ||
+            departure.line.id ||
+            "—";
+        }
+        return "—";
+      }
+
+      function destinationName(departure) {
+        if (departure.direction) return departure.direction;
+        if (departure.destination) {
+          return departure.destination.name || departure.destination;
+        }
+        return "Unbekanntes Ziel";
+      }
+
+      function renderDepartures(targetId, departures, config) {
+        var filtered = [];
+        var i;
+
+        for (i = 0; i < departures.length; i++) {
+          if (matchesConfig(departures[i], config)) {
+            filtered.push(departures[i]);
+          }
+          if (filtered.length >= config.maximum) break;
+        }
+
+        if (!filtered.length) {
+          document.getElementById(targetId).innerHTML =
+            '<div class="error">No matching departures found.</div>';
+          return;
+        }
+
+        var html = '<table class="departures">';
+        for (i = 0; i < filtered.length; i++) {
+          var departure = filtered[i];
+          var minutes = minutesUntil(departureDate(departure));
+          var delay = delayMinutes(departure);
+
+          html +=
+            "<tr>" +
+              '<td class="line">' + escapeHTML(lineName(departure)) + "</td>" +
+              '<td class="destination">' +
+                escapeHTML(destinationName(departure)) +
+              "</td>" +
+              '<td class="minutes">' +
+                (minutes === 0 ? "jetzt" : minutes + " Min.") +
+                (delay > 0 ?
+                  '<span class="late">+' + delay + " min</span>" : "") +
+              "</td>" +
+            "</tr>";
+        }
+        html += "</table>";
+
+        document.getElementById(targetId).innerHTML = html;
+      }
+
+      function escapeHTML(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function resolveStop(config, callback) {
+        if (resolvedStops[config.query]) {
+          callback(null, resolvedStops[config.query]);
+          return;
+        }
+
+        var url =
+          TRANSPORT_BASE + "/locations" +
+          "?query=" + encodeURIComponent(config.query) +
+          "&results=6&stops=true&addresses=false&poi=false";
+
+        requestJSON(url, function (error, locations) {
+          if (error || !locations || !locations.length) {
+            callback(error || new Error("Haltestelle nicht gefunden"));
+            return;
+          }
+
+          var selected = null;
+          var i;
+
+          for (i = 0; i < locations.length; i++) {
+            if (locations[i].type === "stop" ||
+                locations[i].type === "station") {
+              selected = locations[i];
+              break;
+            }
+          }
+
+          if (!selected || !selected.id) {
+            callback(new Error("Haltestelle nicht gefunden"));
+            return;
+          }
+
+          resolvedStops[config.query] = selected.id;
+          callback(null, selected.id);
+        });
+      }
+
+      function loadStop(config) {
+        resolveStop(config, function (error, stopId) {
+          if (error) {
+            document.getElementById(config.target).innerHTML =
+              '<div class="error">Stop could not be found.</div>';
+            return;
+          }
+
+          var url =
+            TRANSPORT_BASE + "/stops/" +
+            encodeURIComponent(stopId) +
+            "/departures?duration=60&results=30";
+
+          requestJSON(url, function (departureError, response) {
+            if (departureError || !response) {
+              document.getElementById(config.target).innerHTML =
+                '<div class="error">Departures unavailable.</div>';
+              return;
+            }
+
+            var departures = response.departures || response;
+            renderDepartures(config.target, departures, config);
+            setUpdated();
+          });
+        });
+      }
+
+      function loadTransport() {
+        var i;
+        for (i = 0; i < stopConfigs.length; i++) {
+          loadStop(stopConfigs[i]);
+        }
+      }
+
+      function setUpdated() {
+        var now = new Date();
+        document.getElementById("updated").innerHTML =
+          "Aktualisiert " + pad(now.getHours()) + ":" + pad(now.getMinutes());
+      }
+
+      function driftForScreenProtection() {
+        var dashboard = document.getElementById("dashboard");
+        var positions = [
+          "translate(0px, 0px)",
+          "translate(2px, 1px)",
+          "translate(-1px, 2px)",
+          "translate(1px, -1px)",
+          "translate(-2px, 0px)"
+        ];
+
+        var index = Math.floor(new Date().getTime() / 300000) % positions.length;
+        dashboard.style.webkitTransform = positions[index];
+        dashboard.style.transform = positions[index];
+      }
+
+      updateClock();
+      loadWeather();
+      loadTransport();
+      loadHolidays();
+      driftForScreenProtection();
+
+      setInterval(updateClock, 1000);
+      setInterval(loadTransport, 60000);
+      setInterval(loadWeather, 900000);
+      setInterval(loadHolidays, 21600000);
+      setInterval(driftForScreenProtection, 300000);
+    }());
+  </script>
+</body>
+</html>
