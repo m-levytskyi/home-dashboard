@@ -348,7 +348,7 @@
         "&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,uv_index_max" +
         "&timezone=Europe%2FBerlin&forecast_days=3";
 
-      var TRANSPORT_BASE = "https://v6.db.transport.rest";
+      var TRANSPORT_BASE = "https://efa.mvv-muenchen.de/ng";
       var HOLIDAY_BASE = "https://openholidaysapi.org";
 
       var stopConfigs = [
@@ -729,6 +729,10 @@
       }
 
       function delayMinutes(departure) {
+        if (typeof departure.delayMinutes === "number") {
+          return departure.delayMinutes;
+        }
+
         if (typeof departure.delay === "number") {
           return Math.round(departure.delay / 60);
         }
@@ -815,6 +819,170 @@
           .replace(/'/g, "&#039;");
       }
 
+      function efaDateTime(value) {
+        if (!value) return null;
+        if (typeof value === "string") return value;
+
+        if (value.date && value.time) {
+          return value.date + "T" + value.time;
+        }
+
+        if (typeof value === "object" &&
+            value.year && value.month && value.day &&
+            (value.hour || value.hour === 0) &&
+            (value.minute || value.minute === 0)) {
+          return (
+            value.year + "-" +
+            pad(Number(value.month)) + "-" +
+            pad(Number(value.day)) + "T" +
+            pad(Number(value.hour)) + ":" +
+            pad(Number(value.minute)) + ":00"
+          );
+        }
+
+        return null;
+      }
+
+      function efaModeFromClass(rawClass) {
+        var value = Number(rawClass);
+        if (!isNaN(value)) {
+          if (value === 2 || value === 3) return "subway";
+          if (value === 4) return "tram";
+          if ((value >= 5 && value <= 8) || value === 11) return "bus";
+          if (value === 0 || value === 1 || value === 13 || value === 15 || value === 16) {
+            return "train";
+          }
+        }
+        return "";
+      }
+
+      function normalizeEFADeparture(rawDeparture) {
+        var line = rawDeparture.servingLine ||
+          rawDeparture.line ||
+          rawDeparture.transportation ||
+          {};
+
+        var mode = "";
+        if (line.product) {
+          mode = String(line.product).toLowerCase();
+        } else if (line.mode) {
+          mode = String(line.mode).toLowerCase();
+        } else if (line.class || line.classId) {
+          mode = efaModeFromClass(line.class || line.classId);
+        }
+
+        var plannedWhen = efaDateTime(
+          rawDeparture.plannedWhen ||
+          rawDeparture.plannedDeparture ||
+          rawDeparture.dateTime ||
+          rawDeparture.dateTimePlanned ||
+          rawDeparture.stopDateTime &&
+            (rawDeparture.stopDateTime.planned || rawDeparture.stopDateTime.scheduled)
+        );
+
+        var when = efaDateTime(
+          rawDeparture.when ||
+          rawDeparture.departure ||
+          rawDeparture.realDateTime ||
+          rawDeparture.dateTimeEstimated ||
+          rawDeparture.stopDateTime && rawDeparture.stopDateTime.estimated
+        ) || plannedWhen;
+
+        var delay = 0;
+        if (typeof rawDeparture.delay === "number") {
+          delay = rawDeparture.delay;
+        } else if (typeof rawDeparture.delayMinutes === "number") {
+          delay = rawDeparture.delayMinutes;
+        } else if (when && plannedWhen) {
+          delay = Math.max(
+            0,
+            Math.round(
+              (new Date(when).getTime() - new Date(plannedWhen).getTime()) / 60000
+            )
+          );
+        }
+
+        return {
+          line: {
+            name: line.name || line.number || line.symbol || line.id || "—",
+            product: mode,
+            mode: mode
+          },
+          direction:
+            rawDeparture.direction ||
+            rawDeparture.destination &&
+              (rawDeparture.destination.name || rawDeparture.destination) ||
+            line.direction ||
+            "Unbekanntes Ziel",
+          when: when,
+          plannedWhen: plannedWhen,
+          delayMinutes: delay
+        };
+      }
+
+      function extractLocations(response) {
+        if (!response) return [];
+
+        if (Array.isArray(response)) return response;
+        if (Array.isArray(response.locations)) return response.locations;
+        if (response.locations && Array.isArray(response.locations.points)) {
+          return response.locations.points;
+        }
+
+        if (response.locations && Array.isArray(response.locations.location)) {
+          return response.locations.location;
+        }
+
+        if (response.stopFinder && Array.isArray(response.stopFinder.points)) {
+          return response.stopFinder.points;
+        }
+
+        if (response.stopFinder && response.stopFinder.points &&
+            Array.isArray(response.stopFinder.points.point)) {
+          return response.stopFinder.points.point;
+        }
+
+        return [];
+      }
+
+      function locationId(location) {
+        return (
+          location.id ||
+          location.stopId ||
+          location.extId ||
+          location.locationId ||
+          location.stateless
+        );
+      }
+
+      function locationType(location) {
+        var type = location.type || location.anyType || location.matchQuality;
+        return type ? String(type).toLowerCase() : "";
+      }
+
+      function extractDepartures(response) {
+        if (!response) return [];
+
+        if (Array.isArray(response.departureList)) {
+          return response.departureList;
+        }
+        if (response.departureList &&
+            Array.isArray(response.departureList.departure)) {
+          return response.departureList.departure;
+        }
+        if (Array.isArray(response.departures)) {
+          return response.departures;
+        }
+        if (Array.isArray(response.stopEvents)) {
+          return response.stopEvents;
+        }
+        if (Array.isArray(response)) {
+          return response;
+        }
+
+        return [];
+      }
+
       function resolveStop(config, callback) {
         if (resolvedStops[config.query]) {
           callback(null, resolvedStops[config.query]);
@@ -822,12 +990,15 @@
         }
 
         var url =
-          TRANSPORT_BASE + "/locations" +
-          "?query=" + encodeURIComponent(config.query) +
-          "&results=6&stops=true&addresses=false&poi=false";
+          TRANSPORT_BASE + "/XML_STOPFINDER_REQUEST" +
+          "?outputFormat=RapidJSON" +
+          "&locationServerActive=1" +
+          "&type_sf=stop" +
+          "&name_sf=" + encodeURIComponent(config.query);
 
-        requestJSON(url, function (error, locations) {
-          if (error || !locations || !locations.length) {
+        requestJSON(url, function (error, response) {
+          var locations = extractLocations(response);
+          if (error || !locations.length) {
             callback(error || new Error("Haltestelle nicht gefunden"));
             return;
           }
@@ -836,20 +1007,28 @@
           var i;
 
           for (i = 0; i < locations.length; i++) {
-            if (locations[i].type === "stop" ||
-                locations[i].type === "station") {
+            var currentType = locationType(locations[i]);
+            if (!currentType ||
+                currentType === "stop" ||
+                currentType === "station" ||
+                currentType === "platform") {
               selected = locations[i];
               break;
             }
           }
 
-          if (!selected || !selected.id) {
+          if (!selected && locations.length) {
+            selected = locations[0];
+          }
+
+          var selectedId = selected && locationId(selected);
+          if (!selectedId) {
             callback(new Error("Haltestelle nicht gefunden"));
             return;
           }
 
-          resolvedStops[config.query] = selected.id;
-          callback(null, selected.id);
+          resolvedStops[config.query] = selectedId;
+          callback(null, selectedId);
         });
       }
 
@@ -862,9 +1041,14 @@
           }
 
           var url =
-            TRANSPORT_BASE + "/stops/" +
-            encodeURIComponent(stopId) +
-            "/departures?duration=60&results=30";
+            TRANSPORT_BASE + "/XML_DM_REQUEST" +
+            "?outputFormat=RapidJSON" +
+            "&stateless=1" +
+            "&type_dm=any" +
+            "&name_dm=" + encodeURIComponent(stopId) +
+            "&mode=direct" +
+            "&useRealtime=1" +
+            "&limit=30";
 
           requestJSON(url, function (departureError, response) {
             if (departureError || !response) {
@@ -873,7 +1057,13 @@
               return;
             }
 
-            var departures = response.departures || response;
+            var departures = [];
+            var rawDepartures = extractDepartures(response);
+            var i;
+            for (i = 0; i < rawDepartures.length; i++) {
+              departures.push(normalizeEFADeparture(rawDepartures[i]));
+            }
+
             renderDepartures(config.target, departures, config);
             setUpdated();
           });
