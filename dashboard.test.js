@@ -8,7 +8,7 @@ function loadHooks() {
     "/home/runner/work/home-dashboard/home-dashboard/index.html",
     "utf8"
   );
-  const scriptMatch = html.match(/<script>\s*([\s\S]*?)<\/script>/);
+  const scriptMatch = html.match(/<script>\s*([\s\S]*?)<\/script>/i);
   assert.ok(scriptMatch, "Dashboard script block must exist");
 
   const window = { __HOME_DASHBOARD_TEST__: true };
