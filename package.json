@@ -1,0 +1,7 @@
+{
+  "name": "home-dashboard",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

@@ -600,6 +600,39 @@
         return names.length ? names[0].text : "Unbenannt";
       }
 
+      function holidayHasName(item, searchText) {
+        var names = item && item.name ? item.name : [];
+        var needle = String(searchText || "").toLowerCase();
+        var i;
+
+        for (i = 0; i < names.length; i++) {
+          if (String(names[i].text || "").toLowerCase().indexOf(needle) !== -1) {
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      function isMunichPublicHoliday(item) {
+        return !holidayHasName(item, "friedensfest");
+      }
+
+      function filterMunichPublicHolidays(items) {
+        var result = [];
+        var i;
+
+        if (!Array.isArray(items)) return result;
+
+        for (i = 0; i < items.length; i++) {
+          if (isMunichPublicHoliday(items[i])) {
+            result.push(items[i]);
+          }
+        }
+
+        return result;
+      }
+
       function renderHoliday(targetId, items, school) {
         var today = new Date();
         today = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -664,7 +697,7 @@
               '<div class="error">Feiertage nicht verfügbar.</div>';
             return;
           }
-          renderHoliday("public-holiday", data, false);
+          renderHoliday("public-holiday", filterMunichPublicHolidays(data), false);
           setUpdated();
         });
 
@@ -1098,17 +1131,35 @@
         dashboard.style.transform = positions[index];
       }
 
-      updateClock();
-      loadWeather();
-      loadTransport();
-      loadHolidays();
-      driftForScreenProtection();
+      if (typeof window !== "undefined") {
+        window.__dashboardTestHooks = {
+          extractLocations: extractLocations,
+          locationId: locationId,
+          locationType: locationType,
+          extractDepartures: extractDepartures,
+          normalizeEFADeparture: normalizeEFADeparture,
+          productMode: productMode,
+          matchesConfig: matchesConfig,
+          lineName: lineName,
+          departureDate: departureDate,
+          filterMunichPublicHolidays: filterMunichPublicHolidays,
+          isMunichPublicHoliday: isMunichPublicHoliday
+        };
+      }
 
-      setInterval(updateClock, 1000);
-      setInterval(loadTransport, 60000);
-      setInterval(loadWeather, 900000);
-      setInterval(loadHolidays, 21600000);
-      setInterval(driftForScreenProtection, 300000);
+      if (!(typeof window !== "undefined" && window.__HOME_DASHBOARD_TEST__)) {
+        updateClock();
+        loadWeather();
+        loadTransport();
+        loadHolidays();
+        driftForScreenProtection();
+
+        setInterval(updateClock, 1000);
+        setInterval(loadTransport, 60000);
+        setInterval(loadWeather, 900000);
+        setInterval(loadHolidays, 21600000);
+        setInterval(driftForScreenProtection, 300000);
+      }
     }());
   </script>
 </body>
