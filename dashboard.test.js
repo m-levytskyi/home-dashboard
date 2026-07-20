@@ -113,13 +113,45 @@ test("normalize departures keeps line numbers, transport mode and departure time
   );
 });
 
+test("transport mode normalization handles ubahn aliases and fallback matching", function () {
+  const hooks = loadHooks();
+  const ubahnByAlias = hooks.normalizeEFADeparture({
+    servingLine: { name: "U 6", trainType: "U-Bahn" },
+    plannedWhen: "2026-07-20T10:00:00",
+    when: "2026-07-20T10:00:00"
+  });
+  const unknownModeBusStop = hooks.normalizeEFADeparture({
+    servingLine: { name: "56" },
+    plannedWhen: "2026-07-20T10:00:00",
+    when: "2026-07-20T10:00:00"
+  });
+
+  assert.equal(hooks.productMode(ubahnByAlias), "subway");
+  assert.equal(
+    hooks.matchesConfig(ubahnByAlias, { mode: "subway", line: "U6" }),
+    true
+  );
+  assert.equal(
+    hooks.matchesConfig(unknownModeBusStop, { mode: "bus", line: "" }),
+    true
+  );
+});
+
 test("extract departures from nested and flat API response shapes", function () {
   const hooks = loadHooks();
   const nested = { departureList: { departure: [{ id: 1 }, { id: 2 }] } };
   const flat = { departures: [{ id: 3 }] };
+  const dmPoints = { dm: { points: [{ id: 4 }] } };
 
   assert.deepEqual(hooks.extractDepartures(nested), [{ id: 1 }, { id: 2 }]);
   assert.deepEqual(hooks.extractDepartures(flat), [{ id: 3 }]);
+  assert.deepEqual(hooks.extractDepartures(dmPoints), [{ id: 4 }]);
+});
+
+test("location id extraction supports nested ref ids", function () {
+  const hooks = loadHooks();
+  const location = { name: "Stiftsbogen", ref: { id: "de:09162:300" } };
+  assert.equal(hooks.locationId(location), "de:09162:300");
 });
 
 test("filter Munich public holidays excludes Augsburg Friedensfest", function () {

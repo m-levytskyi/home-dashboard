@@ -713,11 +713,28 @@
       }
 
       function productMode(departure) {
+        function normalizedMode(value) {
+          var key = String(value || "")
+            .toLowerCase()
+            .replace(/[\s_-]/g, "");
+          if (!key) return "";
+          if (key === "ubahn" || key === "subway" || key === "metro") {
+            return "subway";
+          }
+          if (key === "tram" || key === "streetcar" || key === "str") {
+            return "tram";
+          }
+          if (key === "bus" || key === "nightbus" || key === "nachtbus") {
+            return "bus";
+          }
+          return key;
+        }
+
         var product = departure.line && departure.line.product ?
-          String(departure.line.product).toLowerCase() : "";
+          normalizedMode(departure.line.product) : "";
 
         var mode = departure.line && departure.line.mode ?
-          String(departure.line.mode).toLowerCase() : "";
+          normalizedMode(departure.line.mode) : "";
 
         var name = departure.line && departure.line.name ?
           String(departure.line.name).toUpperCase() : "";
@@ -737,13 +754,16 @@
       function matchesConfig(departure, config) {
         var name = departure.line && departure.line.name ?
           String(departure.line.name).toUpperCase().replace(/\s/g, "") : "";
+        var mode = productMode(departure);
 
         if (config.line &&
             name !== config.line.toUpperCase().replace(/\s/g, "")) {
           return false;
         }
 
-        return productMode(departure) === config.mode;
+        if (mode === config.mode) return true;
+        if (!mode && !config.line) return true;
+        return false;
       }
 
       function departureDate(departure) {
@@ -900,6 +920,12 @@
           mode = String(line.product).toLowerCase();
         } else if (line.mode) {
           mode = String(line.mode).toLowerCase();
+        } else if (line.trainType) {
+          mode = String(line.trainType).toLowerCase();
+        } else if (line.type) {
+          mode = String(line.type).toLowerCase();
+        } else if (line.motType) {
+          mode = String(line.motType).toLowerCase();
         } else if (line.class || line.classId) {
           mode = efaModeFromClass(line.class || line.classId);
         }
@@ -984,7 +1010,8 @@
           location.stopId ||
           location.extId ||
           location.locationId ||
-          location.stateless
+          location.stateless ||
+          location.ref && (location.ref.id || location.ref.stateless)
         );
       }
 
@@ -1008,6 +1035,9 @@
         }
         if (Array.isArray(response.stopEvents)) {
           return response.stopEvents;
+        }
+        if (response.dm && Array.isArray(response.dm.points)) {
+          return response.dm.points;
         }
         if (Array.isArray(response)) {
           return response;
