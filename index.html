@@ -362,19 +362,19 @@
         "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,wind_speed_10m_max" +
         "&timezone=Europe%2FBerlin&forecast_days=3";
 
-      var TRANSPORT_BASE = "https://efa.mvv-muenchen.de/ng";
+      var TRANSPORT_BASE = "https://mvv-worker.mykhailo-levytskyi.workers.dev";
       var HOLIDAY_BASE = "https://openholidaysapi.org";
 
       var stopConfigs = [
         {
-          query: "Münchner Freiheit, München",
+          query: "Haderner Stern, München",
           target: "departures-u6",
           mode: "subway",
           line: "U6",
           maximum: 5
         },
         {
-          query: "Hauptbahnhof Nord, München",
+          query: "Gondrellplatz, München",
           target: "departures-tram",
           mode: "tram",
           line: "",
@@ -922,14 +922,18 @@
       }
 
       function normalizeEFADeparture(rawDeparture) {
-        var line = rawDeparture.servingLine ||
+        var line = rawDeparture.transportation ||
+          rawDeparture.servingLine ||
           rawDeparture.line ||
-          rawDeparture.transportation ||
           {};
 
+        var product = line.product || {};
         var mode = "";
-        if (line.product) {
-          mode = String(line.product).toLowerCase();
+
+        if (product.name) {
+          mode = String(product.name).toLowerCase();
+        } else if (product.class || product.class === 0) {
+          mode = efaModeFromClass(product.class);
         } else if (line.mode) {
           mode = String(line.mode).toLowerCase();
         } else if (line.trainType) {
@@ -943,6 +947,7 @@
         }
 
         var plannedWhen = efaDateTime(
+          rawDeparture.departureTimePlanned ||
           rawDeparture.plannedWhen ||
           rawDeparture.plannedDeparture ||
           rawDeparture.dateTime ||
@@ -952,6 +957,7 @@
         );
 
         var when = efaDateTime(
+          rawDeparture.departureTimeEstimated ||
           rawDeparture.when ||
           rawDeparture.departure ||
           rawDeparture.realDateTime ||
@@ -975,11 +981,14 @@
 
         return {
           line: {
-            name: line.name || line.number || line.symbol || line.id || "—",
+            name: line.number || line.disassembledName ||
+              line.name || line.symbol || line.id || "—",
             product: mode,
             mode: mode
           },
           direction:
+            line.destination &&
+              (line.destination.name || line.destination) ||
             rawDeparture.direction ||
             rawDeparture.destination &&
               (rawDeparture.destination.name || rawDeparture.destination) ||
