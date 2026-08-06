@@ -63,6 +63,13 @@
       outline-offset: 3px;
     }
 
+    .time-line {
+      display: flex;
+      align-items: flex-end;
+      gap: 16px;
+      padding-right: 54px;
+    }
+
     #time {
       font-size: 82px;
       font-weight: 300;
@@ -75,6 +82,23 @@
       font-size: 22px;
       font-weight: 400;
       color: #5b5b55;
+    }
+
+    .sun-times {
+      color: #5b5b55;
+      font-size: 17px;
+      line-height: 1.3;
+      margin-bottom: 5px;
+    }
+
+    .sun-time {
+      display: block;
+      white-space: nowrap;
+    }
+
+    .sun-symbol {
+      display: inline-block;
+      width: 31px;
     }
 
     .section {
@@ -168,33 +192,6 @@
     }
 
     .weather-detail span {
-      color: #73736c;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: .7px;
-    }
-
-    .weather-sun {
-      display: table;
-      width: 100%;
-      table-layout: fixed;
-      margin-top: 16px;
-    }
-
-    .sun-time {
-      display: table-cell;
-      width: 50%;
-      padding-right: 8px;
-    }
-
-    .sun-time strong {
-      display: block;
-      font-size: 19px;
-      font-weight: 500;
-      margin-bottom: 3px;
-    }
-
-    .sun-time span {
       color: #73736c;
       font-size: 12px;
       text-transform: uppercase;
@@ -337,12 +334,12 @@
     body.night-mode .label,
     body.night-mode .muted,
     body.night-mode .range-low,
+    body.night-mode .sun-times,
     body.night-mode .hour-time,
     body.night-mode .hour-rain,
     body.night-mode .info-date,
     body.night-mode .info-note,
     body.night-mode .weather-detail span,
-    body.night-mode .sun-time span,
     body.night-mode .error,
     body.night-mode .loading,
     body.night-mode #updated {
@@ -351,8 +348,7 @@
 
     body.night-mode .weather-temp,
     body.night-mode .range-high,
-    body.night-mode .weather-detail strong,
-    body.night-mode .sun-time strong {
+    body.night-mode .weather-detail strong {
       color: #fffaf0;
     }
 
@@ -413,6 +409,11 @@
         font-size: 20px;
       }
 
+      .sun-times {
+        font-size: 16px;
+        margin-bottom: 4px;
+      }
+
       .night-toggle {
         top: 0;
         width: 38px;
@@ -431,13 +432,11 @@
       }
 
       .weather-details,
-      .weather-sun,
       .hourly {
         margin-top: 16px;
       }
 
-      .weather-detail strong,
-      .sun-time strong {
+      .weather-detail strong {
         font-size: 17px;
       }
 
@@ -494,7 +493,10 @@
 
     @media (max-width: 500px) {
       body { padding: 20px; }
+      .time-line { gap: 10px; padding-right: 48px; }
       #time { font-size: 68px; }
+      .sun-times { font-size: 15px; margin-bottom: 3px; }
+      .sun-symbol { width: 28px; }
       .weather-temp { font-size: 58px; }
       .weather-icon { font-size: 32px; width: 36px; }
       .range-high, .range-low { font-size: 20px; }
@@ -510,7 +512,17 @@
     <div class="left-column">
       <header class="top">
         <button class="night-toggle" id="night-toggle" type="button" aria-label="Nachtmodus umschalten" aria-pressed="false" title="Nachtmodus umschalten">☾</button>
-        <div id="time">--:--</div>
+        <div class="time-line">
+          <div id="time">--:--</div>
+          <div class="sun-times">
+            <div class="sun-time" aria-label="Sonnenaufgang">
+              <span class="sun-symbol" aria-hidden="true">☀↑</span><span id="sunrise">--:--</span>
+            </div>
+            <div class="sun-time" aria-label="Sonnenuntergang">
+              <span class="sun-symbol" aria-hidden="true">☀↓</span><span id="sunset">--:--</span>
+            </div>
+          </div>
+        </div>
         <div id="date">Wird geladen…</div>
       </header>
 
@@ -540,17 +552,6 @@
           <div class="weather-detail">
             <strong id="uv-index">--</strong>
             <span>UV max</span>
-          </div>
-        </div>
-
-        <div class="weather-sun">
-          <div class="sun-time">
-            <strong id="sunrise">--:--</strong>
-            <span>Sonnenaufgang</span>
-          </div>
-          <div class="sun-time">
-            <strong id="sunset">--:--</strong>
-            <span>Sonnenuntergang</span>
           </div>
         </div>
 
