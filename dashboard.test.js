@@ -1,11 +1,12 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const path = require("node:path");
 const vm = require("node:vm");
 
 function loadHooks() {
   const html = fs.readFileSync(
-    "/home/runner/work/home-dashboard/home-dashboard/index.html",
+    path.join(__dirname, "index.html"),
     "utf8"
   );
   const scriptMatch = html.match(/<script>\s*([\s\S]*?)<\/script>/i);
@@ -160,6 +161,39 @@ test("weather icon mapping returns monochrome symbols", function () {
   assert.equal(hooks.weatherIcon(3), "☁");
   assert.equal(hooks.weatherIcon(61), "☂");
   assert.equal(hooks.weatherIcon(95), "⚡");
+});
+
+test("night mode follows sunrise and sunset", function () {
+  const hooks = loadHooks();
+  const sunrises = [
+    "2026-08-06T05:55",
+    "2026-08-07T05:56"
+  ];
+  const sunsets = [
+    "2026-08-06T20:43",
+    "2026-08-07T20:41"
+  ];
+
+  assert.equal(
+    hooks.isNightBySun(new Date("2026-08-06T04:30"), sunrises, sunsets),
+    true
+  );
+  assert.equal(
+    hooks.isNightBySun(new Date("2026-08-06T12:00"), sunrises, sunsets),
+    false
+  );
+  assert.equal(
+    hooks.isNightBySun(new Date("2026-08-06T21:00"), sunrises, sunsets),
+    true
+  );
+  assert.equal(
+    hooks.nextSunTransition(
+      new Date("2026-08-06T12:00"),
+      sunrises,
+      sunsets
+    ).getTime(),
+    new Date("2026-08-06T20:43").getTime()
+  );
 });
 
 test("filter Munich public holidays excludes Augsburg Friedensfest", function () {
