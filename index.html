@@ -198,43 +198,6 @@
       letter-spacing: .7px;
     }
 
-    .hourly {
-      white-space: nowrap;
-      overflow: hidden;
-      margin-top: 22px;
-    }
-
-    .hour {
-      display: inline-block;
-      width: 72px;
-      margin-right: 9px;
-      text-align: center;
-      vertical-align: top;
-    }
-
-    .hour-time {
-      color: #707069;
-      font-size: 12px;
-      margin-bottom: 6px;
-    }
-
-    .hour-icon {
-      font-size: 20px;
-      line-height: 1;
-      margin-bottom: 5px;
-    }
-
-    .hour-temp {
-      font-size: 18px;
-      margin-bottom: 0;
-    }
-
-    .hour-rain {
-      color: #676760;
-      font-size: 12px;
-    }
-
-
     .info-pair {
       display: table;
       width: 100%;
@@ -335,8 +298,6 @@
     body.night-mode .muted,
     body.night-mode .range-low,
     body.night-mode .sun-times,
-    body.night-mode .hour-time,
-    body.night-mode .hour-rain,
     body.night-mode .info-date,
     body.night-mode .info-note,
     body.night-mode .weather-detail span,
@@ -431,21 +392,11 @@
         font-size: 32px;
       }
 
-      .weather-details,
-      .hourly {
+      .weather-details {
         margin-top: 16px;
       }
 
       .weather-detail strong {
-        font-size: 17px;
-      }
-
-      .hour {
-        width: 43px;
-        margin-right: 3px;
-      }
-
-      .hour-temp {
         font-size: 17px;
       }
 
@@ -554,8 +505,6 @@
             <span>UV max</span>
           </div>
         </div>
-
-        <div class="hourly" id="hourly-weather"></div>
       </section>
 
       <section class="section">
@@ -595,7 +544,6 @@
         "https://api.open-meteo.com/v1/forecast" +
         "?latitude=48.113&longitude=11.481" +
         "&current=temperature_2m,weather_code" +
-        "&hourly=temperature_2m,weather_code,uv_index" +
         "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,wind_speed_10m_max,sunrise,sunset" +
         "&timezone=Europe%2FBerlin&forecast_days=3";
 
@@ -735,21 +683,6 @@
         return match ? match[1] : "--:--";
       }
 
-      function findCurrentHourIndex(times) {
-        var now = new Date();
-        var key =
-          now.getFullYear() + "-" +
-          pad(now.getMonth() + 1) + "-" +
-          pad(now.getDate()) + "T" +
-          pad(now.getHours()) + ":00";
-
-        var i;
-        for (i = 0; i < times.length; i++) {
-          if (times[i] === key) return i;
-        }
-        return 0;
-      }
-
       function parseSunTime(value) {
         var date = value ? new Date(value) : null;
         return date && !isNaN(date.getTime()) ? date : null;
@@ -836,14 +769,11 @@
             document.getElementById("uv-index").innerHTML = "--";
             document.getElementById("sunrise").innerHTML = "--:--";
             document.getElementById("sunset").innerHTML = "--:--";
-            document.getElementById("hourly-weather").innerHTML =
-              '<div class="error">Wetter nicht verfügbar.</div>';
             return;
           }
 
           var current = data.current;
           var daily = data.daily;
-          var hourly = data.hourly;
           sunrises = daily.sunrise || [];
           sunsets = daily.sunset || [];
           applyAutomaticNightMode();
@@ -878,27 +808,6 @@
             timeFromISO(sunrises[0]);
           document.getElementById("sunset").innerHTML =
             timeFromISO(sunsets[0]);
-
-          var start = findCurrentHourIndex(hourly.time);
-          var output = "";
-          var i;
-
-          for (i = start; i < start + 8 && i < hourly.time.length; i++) {
-            output +=
-              '<div class="hour">' +
-                '<div class="hour-time">' +
-                  (i === start ? "Jetzt" : timeFromISO(hourly.time[i])) +
-                '</div>' +
-                '<div class="hour-icon">' +
-                  weatherIcon(hourly.weather_code[i]) +
-                '</div>' +
-                '<div class="hour-temp">' +
-                  Math.round(hourly.temperature_2m[i]) + "°" +
-                '</div>' +
-              '</div>';
-          }
-
-          document.getElementById("hourly-weather").innerHTML = output;
           setUpdated();
         });
       }
