@@ -155,12 +155,12 @@ test("location id extraction supports nested ref ids", function () {
   assert.equal(hooks.locationId(location), "de:09162:300");
 });
 
-test("weather icon mapping returns monochrome symbols", function () {
+test("weather icon mapping returns stable inline SVG icons", function () {
   const hooks = loadHooks();
-  assert.equal(hooks.weatherIcon(0), "☀");
-  assert.equal(hooks.weatherIcon(3), "☁");
-  assert.equal(hooks.weatherIcon(61), "☂");
-  assert.equal(hooks.weatherIcon(95), "⚡");
+  assert.match(hooks.weatherIcon(0), /^<svg[\s\S]*<circle/);
+  assert.match(hooks.weatherIcon(3), /^<svg[\s\S]*<path/);
+  assert.match(hooks.weatherIcon(61), /M13 30l-2 5/);
+  assert.match(hooks.weatherIcon(95), /M21 27l-4 6/);
 });
 
 test("night mode follows sunrise and sunset", function () {
@@ -194,6 +194,18 @@ test("night mode follows sunrise and sunset", function () {
     ).getTime(),
     new Date("2026-08-06T20:43").getTime()
   );
+});
+
+test("legacy-safe date parser handles Open-Meteo timestamps without seconds", function () {
+  const hooks = loadHooks();
+  const parsed = hooks.parseDateTime("2026-08-06T05:55");
+
+  assert.ok(parsed instanceof Date);
+  assert.equal(parsed.getFullYear(), 2026);
+  assert.equal(parsed.getMonth(), 7);
+  assert.equal(parsed.getDate(), 6);
+  assert.equal(parsed.getHours(), 5);
+  assert.equal(parsed.getMinutes(), 55);
 });
 
 test("filter Munich public holidays excludes Augsburg Friedensfest", function () {

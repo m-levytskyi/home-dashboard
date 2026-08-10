@@ -4,6 +4,7 @@
  * Erlaubte Endpunkte:
  *   /XML_STOPFINDER_REQUEST
  *   /XML_DM_REQUEST
+ *   /weather
  *
  * Verwendung im Dashboard:
  * var TRANSPORT_BASE = "https://dein-worker.dein-account.workers.dev";
@@ -31,6 +32,10 @@ export default {
       "/XML_STOPFINDER_REQUEST",
       "/XML_DM_REQUEST"
     ];
+
+    if (requestUrl.pathname === "/weather") {
+      return proxyWeather(requestUrl);
+    }
 
     if (!allowedPaths.includes(requestUrl.pathname)) {
       return jsonResponse(
@@ -94,6 +99,32 @@ export default {
     }
   }
 };
+
+async function proxyWeather(requestUrl) {
+  const upstreamUrl = new URL("https://api.open-meteo.com/v1/forecast");
+  upstreamUrl.search = requestUrl.search;
+
+  try {
+    const upstreamResponse = await fetch(upstreamUrl.toString(), {
+      headers: { "Accept": "application/json" },
+      cf: { cacheEverything: true, cacheTtl: 600 }
+    });
+    const responseBody = await upstreamResponse.arrayBuffer();
+    const headers = corsHeaders();
+    headers.set("Content-Type", "application/json; charset=utf-8");
+    headers.set("Cache-Control", "public, max-age=600");
+
+    return new Response(responseBody, {
+      status: upstreamResponse.status,
+      headers
+    });
+  } catch (error) {
+    return jsonResponse(
+      { error: "Die Wetteranfrage ist fehlgeschlagen.", detail: String(error) },
+      502
+    );
+  }
+}
 
 function corsHeaders() {
   return new Headers({
