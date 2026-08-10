@@ -163,6 +163,16 @@ test("weather icon mapping returns stable inline SVG icons", function () {
   assert.match(hooks.weatherIcon(95), /M21 27l-4 6/);
 });
 
+test("light and dark mode controls use SVG instead of emoji glyphs", function () {
+  const hooks = loadHooks();
+  const moon = hooks.modeIconSVG("moon");
+  const sun = hooks.modeIconSVG("sun");
+
+  assert.match(moon, /^<svg[\s\S]*<path/);
+  assert.match(sun, /^<svg[\s\S]*<circle/);
+  assert.doesNotMatch(moon + sun, /[☀☾]/);
+});
+
 test("night mode follows sunrise and sunset", function () {
   const hooks = loadHooks();
   const sunrises = [

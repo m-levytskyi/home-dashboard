@@ -5,6 +5,8 @@
  *   /XML_STOPFINDER_REQUEST
  *   /XML_DM_REQUEST
  *   /weather
+ *   /holidays/public
+ *   /holidays/school
  *
  * Verwendung im Dashboard:
  * var TRANSPORT_BASE = "https://dein-worker.dein-account.workers.dev";
@@ -35,6 +37,14 @@ export default {
 
     if (requestUrl.pathname === "/weather") {
       return proxyWeather(requestUrl);
+    }
+
+    if (requestUrl.pathname === "/holidays/public") {
+      return proxyHolidays(requestUrl, "PublicHolidays");
+    }
+
+    if (requestUrl.pathname === "/holidays/school") {
+      return proxyHolidays(requestUrl, "SchoolHolidays");
     }
 
     if (!allowedPaths.includes(requestUrl.pathname)) {
@@ -121,6 +131,34 @@ async function proxyWeather(requestUrl) {
   } catch (error) {
     return jsonResponse(
       { error: "Die Wetteranfrage ist fehlgeschlagen.", detail: String(error) },
+      502
+    );
+  }
+}
+
+async function proxyHolidays(requestUrl, endpoint) {
+  const upstreamUrl = new URL(
+    "https://openholidaysapi.org/" + endpoint
+  );
+  upstreamUrl.search = requestUrl.search;
+
+  try {
+    const upstreamResponse = await fetch(upstreamUrl.toString(), {
+      headers: { "Accept": "application/json" },
+      cf: { cacheEverything: true, cacheTtl: 21600 }
+    });
+    const responseBody = await upstreamResponse.arrayBuffer();
+    const headers = corsHeaders();
+    headers.set("Content-Type", "application/json; charset=utf-8");
+    headers.set("Cache-Control", "public, max-age=21600");
+
+    return new Response(responseBody, {
+      status: upstreamResponse.status,
+      headers
+    });
+  } catch (error) {
+    return jsonResponse(
+      { error: "Die Feiertagsanfrage ist fehlgeschlagen.", detail: String(error) },
       502
     );
   }

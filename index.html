@@ -54,10 +54,26 @@
       border-radius: 50%;
       background: rgba(255,255,255,.18);
       color: #34342f;
-      font: inherit;
-      font-size: 22px;
-      line-height: 1;
+      padding: 0;
+      overflow: hidden;
       cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .night-toggle svg {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 23px;
+      height: 23px;
+      margin: -11.5px 0 0 -11.5px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      pointer-events: none;
     }
 
     .night-toggle:focus-visible {
@@ -66,37 +82,48 @@
     }
 
     .time-line {
-      display: flex;
-      align-items: flex-end;
-      gap: 16px;
-      padding-right: 54px;
+      display: block;
+      width: 100%;
+      padding-top: 50px;
     }
 
     #time {
-      font-size: 82px;
+      display: inline-block;
+      max-width: none;
+      font-size: 245px;
       font-weight: 300;
-      letter-spacing: -5px;
-      line-height: .95;
+      letter-spacing: -12px;
+      line-height: .86;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      -webkit-font-feature-settings: "tnum";
+      font-feature-settings: "tnum";
     }
 
     #date {
-      margin-top: 12px;
+      margin-top: 10px;
       font-size: 22px;
       font-weight: 400;
       color: #5b5b55;
     }
 
     .sun-times {
+      display: table;
+      width: 100%;
+      table-layout: fixed;
       color: #5b5b55;
       font-size: 17px;
       line-height: 1.3;
-      margin-bottom: 5px;
+      margin-top: 14px;
     }
 
     .sun-time {
-      display: block;
+      display: table-cell;
+      width: 50%;
       white-space: nowrap;
     }
+
+    .sun-time:last-child { text-align: right; }
 
     .sun-symbol {
       display: inline-block;
@@ -379,8 +406,8 @@
       }
 
       #time {
-        font-size: 72px;
-        letter-spacing: -4px;
+        font-size: 140px;
+        letter-spacing: -7px;
       }
 
       #date {
@@ -390,14 +417,13 @@
 
       .sun-times {
         font-size: 16px;
-        margin-bottom: 4px;
+        margin-top: 10px;
       }
 
       .night-toggle {
         top: 0;
         width: 38px;
         height: 38px;
-        font-size: 20px;
       }
 
       .weather-temp {
@@ -463,9 +489,8 @@
 
     @media (max-width: 500px) {
       body { padding: 20px; }
-      .time-line { gap: 10px; padding-right: 48px; }
-      #time { font-size: 68px; }
-      .sun-times { font-size: 15px; margin-bottom: 3px; }
+      #time { font-size: 125px; letter-spacing: -6px; }
+      .sun-times { font-size: 15px; margin-top: 10px; }
       .sun-symbol { width: 28px; }
       .weather-temp { font-size: 58px; }
       .weather-icon { font-size: 32px; width: 36px; height: 36px; }
@@ -481,7 +506,7 @@
   <main id="dashboard">
     <div class="left-column">
       <header class="top">
-        <button class="night-toggle" id="night-toggle" type="button" aria-label="Nachtmodus umschalten" aria-pressed="false" title="Nachtmodus umschalten">☾</button>
+        <button class="night-toggle" id="night-toggle" type="button" aria-label="Nachtmodus aktivieren" aria-pressed="false" title="Nachtmodus aktivieren"><svg viewBox="0 0 40 40" aria-hidden="true" focusable="false"><path d="M28.5 28.5A13 13 0 0 1 13 11a13 13 0 1 0 15.5 17.5Z"/></svg></button>
         <div class="time-line">
           <div id="time">--:--</div>
           <div class="sun-times">
@@ -570,6 +595,7 @@
       var TRANSPORT_BASE = "https://mvv-worker.mykhailo-levytskyi.workers.dev";
       var WEATHER_PROXY_URL = TRANSPORT_BASE + "/weather" + WEATHER_QUERY;
       var HOLIDAY_BASE = "https://openholidaysapi.org";
+      var HOLIDAY_PROXY_BASE = TRANSPORT_BASE + "/holidays";
 
       var stopConfigs = [
         {
@@ -655,6 +681,26 @@
           now.getDate() + " " +
           months[now.getMonth()] + " " +
           now.getFullYear();
+      }
+
+      function fitClock() {
+        var clock = document.getElementById("time");
+        var line = clock && clock.parentNode;
+        if (!clock || !line || !line.clientWidth) return;
+
+        var baseSize = 320;
+        clock.style.fontSize = baseSize + "px";
+        clock.style.letterSpacing = "-16px";
+
+        var measuredWidth = clock.offsetWidth;
+        if (!measuredWidth) return;
+
+        var fittedSize = Math.floor(
+          baseSize * (line.clientWidth / measuredWidth) * 0.99
+        );
+        clock.style.fontSize = fittedSize + "px";
+        clock.style.letterSpacing =
+          "-" + Math.max(6, Math.round(fittedSize / 20)) + "px";
       }
 
       function weatherText(code) {
@@ -821,9 +867,23 @@
         document.documentElement.className = className;
 
         if (button) {
-          button.innerHTML = enabled ? "☀" : "☾";
+          button.innerHTML = modeIconSVG(enabled ? "sun" : "moon");
           button.setAttribute("aria-pressed", enabled ? "true" : "false");
+          button.setAttribute(
+            "aria-label",
+            enabled ? "Tagmodus aktivieren" : "Nachtmodus aktivieren"
+          );
+          button.title = enabled ?
+            "Tagmodus aktivieren" : "Nachtmodus aktivieren";
         }
+      }
+
+      function modeIconSVG(type) {
+        var path = type === "sun" ?
+          '<circle cx="20" cy="20" r="6"/><path d="M20 4v5M20 31v5M4 20h5M31 20h5M8.5 8.5l3.5 3.5M28 28l3.5 3.5M31.5 8.5 28 12M12 28l-3.5 3.5"/>' :
+          '<path d="M28.5 28.5A13 13 0 0 1 13 11a13 13 0 1 0 15.5 17.5Z"/>';
+        return '<svg viewBox="0 0 40 40" aria-hidden="true" focusable="false">' +
+          path + '</svg>';
       }
 
       function scheduleNightMode() {
@@ -849,12 +909,12 @@
       }
 
       function requestWeather(callback) {
-        requestJSON(WEATHER_URL, function (error, data) {
+        requestJSON(WEATHER_PROXY_URL, function (error, data) {
           if (!error) {
             callback(null, data);
             return;
           }
-          requestJSON(WEATHER_PROXY_URL, callback);
+          requestJSON(WEATHER_URL, callback);
         });
       }
 
@@ -1038,25 +1098,52 @@
           "&validFrom=" + localDateString(today) +
           "&validTo=" + localDateString(until);
 
-        requestJSON(HOLIDAY_BASE + "/PublicHolidays" + common, function (error, data) {
-          if (error || !data) {
-            document.getElementById("public-holiday").innerHTML =
-              '<div class="error">Feiertage nicht verfügbar.</div>';
-            return;
+        requestHoliday(
+          "public",
+          HOLIDAY_BASE + "/PublicHolidays" + common,
+          common,
+          function (error, data) {
+            if (error || !data) {
+              document.getElementById("public-holiday").innerHTML =
+                '<div class="error">Feiertage nicht verfügbar.</div>';
+              return;
+            }
+            renderHoliday(
+              "public-holiday",
+              filterMunichPublicHolidays(data),
+              false
+            );
+            setUpdated();
           }
-          renderHoliday("public-holiday", filterMunichPublicHolidays(data), false);
-          setUpdated();
-        });
+        );
 
-        requestJSON(HOLIDAY_BASE + "/SchoolHolidays" + common, function (error, data) {
-          if (error || !data) {
-            document.getElementById("school-holiday").innerHTML =
-              '<div class="error">Schulferien nicht verfügbar.</div>';
-            return;
+        requestHoliday(
+          "school",
+          HOLIDAY_BASE + "/SchoolHolidays" + common,
+          common,
+          function (error, data) {
+            if (error || !data) {
+              document.getElementById("school-holiday").innerHTML =
+                '<div class="error">Schulferien nicht verfügbar.</div>';
+              return;
+            }
+            renderHoliday("school-holiday", data, true);
+            setUpdated();
           }
-          renderHoliday("school-holiday", data, true);
-          setUpdated();
-        });
+        );
+      }
+
+      function requestHoliday(type, directUrl, query, callback) {
+        requestJSON(
+          HOLIDAY_PROXY_BASE + "/" + type + query,
+          function (error, data) {
+            if (!error) {
+              callback(null, data);
+              return;
+            }
+            requestJSON(directUrl, callback);
+          }
+        );
       }
 
       function productMode(departure) {
@@ -1535,6 +1622,7 @@
           lineName: lineName,
           departureDate: departureDate,
           weatherIcon: weatherIcon,
+          modeIconSVG: modeIconSVG,
           parseDateTime: parseDateTime,
           isNightBySun: isNightBySun,
           nextSunTransition: nextSunTransition,
@@ -1545,12 +1633,20 @@
 
       if (!(typeof window !== "undefined" && window.__HOME_DASHBOARD_TEST__)) {
         updateClock();
+        fitClock();
         loadWeather();
         loadTransport();
         loadHolidays();
         driftForScreenProtection();
 
         document.getElementById("night-toggle").onclick = toggleNightMode;
+
+        if (window.addEventListener) {
+          window.addEventListener("resize", fitClock, false);
+          window.addEventListener("orientationchange", function () {
+            setTimeout(fitClock, 250);
+          }, false);
+        }
 
         setInterval(updateClock, 1000);
         setInterval(loadTransport, 60000);
