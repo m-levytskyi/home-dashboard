@@ -281,7 +281,7 @@
     }
 
     .departures td {
-      padding: 10px 0;
+      padding: 14px 0;
       border-top: 1px solid rgba(0,0,0,.09);
       vertical-align: middle;
     }
@@ -289,27 +289,35 @@
     .departures tr:first-child td { border-top: 0; }
 
     .line {
-      width: 68px;
-      font-size: 19px;
+      width: 78px;
+      font-size: 29px;
       font-weight: 600;
     }
 
     .destination {
-      font-size: 17px;
-      padding-right: 8px !important;
+      font-size: 26px;
+      line-height: 1.15;
+      padding-right: 12px !important;
     }
 
     .minutes {
-      width: 72px;
+      width: 102px;
       text-align: right;
-      font-size: 18px;
+      font-size: 27px;
       white-space: nowrap;
+    }
+
+    .preferred-departure .line { font-weight: 700; }
+
+    .preferred-departure .destination,
+    .preferred-departure .minutes {
+      font-weight: 600;
     }
 
     .late {
       display: block;
       color: #846135;
-      font-size: 11px;
+      font-size: 14px;
       margin-top: 2px;
     }
 
@@ -454,21 +462,21 @@
       }
 
       .departures td {
-        padding: 8px 0;
+        padding: 11px 0;
       }
 
       .line {
-        width: 58px;
-        font-size: 18px;
+        width: 68px;
+        font-size: 27px;
       }
 
       .destination {
-        font-size: 16px;
+        font-size: 24px;
       }
 
       .minutes {
-        width: 70px;
-        font-size: 17px;
+        width: 94px;
+        font-size: 25px;
       }
 
       .right-column .section:last-of-type {
@@ -603,14 +611,22 @@
           target: "departures-u6",
           mode: "subway",
           line: "U6",
-          maximum: 5
+          maximum: 4,
+          prominent: {
+            line: "U6",
+            directions: ["garching", "sendlinger tor"],
+            excludedDirections: ["klinikum"]
+          }
         },
         {
           query: "Gondrellplatz, München",
           target: "departures-tram",
           mode: "tram",
           line: "",
-          maximum: 5
+          maximum: 4,
+          prominent: {
+            line: "18"
+          }
         }
       ];
 
@@ -1258,6 +1274,38 @@
         return "Unbekanntes Ziel";
       }
 
+      function isProminentDeparture(departure, config) {
+        var rule = config && config.prominent;
+        if (!rule) return false;
+
+        var departureLine = String(lineName(departure))
+          .toLowerCase()
+          .replace(/\s/g, "");
+        var requiredLine = String(rule.line || "")
+          .toLowerCase()
+          .replace(/\s/g, "");
+        var direction = String(destinationName(departure)).toLowerCase();
+        var i;
+
+        if (requiredLine && departureLine !== requiredLine) return false;
+
+        for (i = 0; i < (rule.excludedDirections || []).length; i++) {
+          if (direction.indexOf(rule.excludedDirections[i].toLowerCase()) !== -1) {
+            return false;
+          }
+        }
+
+        if (!rule.directions || !rule.directions.length) return true;
+
+        for (i = 0; i < rule.directions.length; i++) {
+          if (direction.indexOf(rule.directions[i].toLowerCase()) !== -1) {
+            return true;
+          }
+        }
+
+        return false;
+      }
+
       function renderDepartures(targetId, departures, config) {
         var filtered = [];
         var i;
@@ -1280,9 +1328,11 @@
           var departure = filtered[i];
           var minutes = minutesUntil(departureDate(departure));
           var delay = delayMinutes(departure);
+          var rowClass = isProminentDeparture(departure, config) ?
+            ' class="preferred-departure"' : "";
 
           html +=
-            "<tr>" +
+            "<tr" + rowClass + ">" +
               '<td class="line">' + escapeHTML(lineName(departure)) + "</td>" +
               '<td class="destination">' +
                 escapeHTML(destinationName(departure)) +
@@ -1619,6 +1669,7 @@
           normalizeEFADeparture: normalizeEFADeparture,
           productMode: productMode,
           matchesConfig: matchesConfig,
+          isProminentDeparture: isProminentDeparture,
           lineName: lineName,
           departureDate: departureDate,
           weatherIcon: weatherIcon,

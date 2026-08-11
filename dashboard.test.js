@@ -138,6 +138,39 @@ test("transport mode normalization handles ubahn aliases and fallback matching",
   );
 });
 
+test("prominent departures select northbound U6 and tram 18", function () {
+  const hooks = loadHooks();
+  const u6Rule = {
+    prominent: {
+      line: "U6",
+      directions: ["garching", "sendlinger tor"],
+      excludedDirections: ["klinikum"]
+    }
+  };
+  const tramRule = { prominent: { line: "18" } };
+
+  assert.equal(hooks.isProminentDeparture({
+    line: { name: "U6" },
+    direction: "Garching-Forschungszentrum"
+  }, u6Rule), true);
+  assert.equal(hooks.isProminentDeparture({
+    line: { name: "U6" },
+    direction: "Sendlinger Tor"
+  }, u6Rule), true);
+  assert.equal(hooks.isProminentDeparture({
+    line: { name: "U6" },
+    direction: "Klinikum Großhadern"
+  }, u6Rule), false);
+  assert.equal(hooks.isProminentDeparture({
+    line: { name: "18" },
+    direction: "Schwanseestraße"
+  }, tramRule), true);
+  assert.equal(hooks.isProminentDeparture({
+    line: { name: "19" },
+    direction: "Berg am Laim"
+  }, tramRule), false);
+});
+
 test("extract departures from nested and flat API response shapes", function () {
   const hooks = loadHooks();
   const nested = { departureList: { departure: [{ id: 1 }, { id: 2 }] } };
