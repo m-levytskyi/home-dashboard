@@ -171,6 +171,59 @@ test("prominent departures select northbound U6 and tram 18", function () {
   }, tramRule), false);
 });
 
+test("departure selection keeps the next two future rows across midnight", function () {
+  const hooks = loadHooks();
+  const now = hooks.parseDateTime("2026-08-27T23:50:00");
+  const departures = [
+    {
+      line: { name: "18", product: "tram" },
+      direction: "Past",
+      when: "2026-08-27T23:40:00"
+    },
+    {
+      line: { name: "U6", product: "subway" },
+      direction: "Wrong mode",
+      when: "2026-08-28T00:05:00"
+    },
+    {
+      line: { name: "18", product: "tram" },
+      direction: "Second",
+      when: "2026-08-28T00:20:00"
+    },
+    {
+      line: { name: "18", product: "tram" },
+      direction: "First",
+      when: "2026-08-28T00:10:00"
+    },
+    {
+      line: { name: "18", product: "tram" },
+      direction: "First",
+      when: "2026-08-28T00:10:00"
+    }
+  ];
+
+  const selected = hooks.selectDepartures(
+    departures,
+    { mode: "tram", line: "", maximum: 2 },
+    now
+  );
+
+  assert.equal(selected.length, 2);
+  assert.equal(selected[0].direction, "First");
+  assert.equal(selected[1].direction, "Second");
+});
+
+test("departure requests pin explicit EFA date and time", function () {
+  const hooks = loadHooks();
+  const startAt = hooks.parseDateTime("2026-08-28T00:00:00");
+  const requestUrl = new URL(hooks.departureRequestUrl("de:09162:1554", startAt));
+
+  assert.equal(requestUrl.searchParams.get("name_dm"), "de:09162:1554");
+  assert.equal(requestUrl.searchParams.get("limit"), "60");
+  assert.equal(requestUrl.searchParams.get("itdDate"), "20260828");
+  assert.equal(requestUrl.searchParams.get("itdTime"), "0000");
+});
+
 test("extract departures from nested and flat API response shapes", function () {
   const hooks = loadHooks();
   const nested = { departureList: { departure: [{ id: 1 }, { id: 2 }] } };

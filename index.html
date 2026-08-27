@@ -604,6 +604,8 @@
       var WEATHER_PROXY_URL = TRANSPORT_BASE + "/weather" + WEATHER_QUERY;
       var HOLIDAY_BASE = "https://openholidaysapi.org";
       var HOLIDAY_PROXY_BASE = TRANSPORT_BASE + "/holidays";
+      var DEPARTURE_QUERY_LIMIT = 60;
+      var DEPARTURE_LOOKAHEAD_DAYS = 7;
 
       var stopConfigs = [
         {
@@ -1226,9 +1228,47 @@
         return parseDateTime(value);
       }
 
-      function minutesUntil(date) {
+      function minutesUntil(date, now) {
         if (!date || isNaN(date.getTime())) return null;
-        return Math.max(0, Math.round((date.getTime() - new Date().getTime()) / 60000));
+        now = now || new Date();
+        return Math.max(0, Math.round((date.getTime() - now.getTime()) / 60000));
+      }
+
+      function departureKey(departure, date) {
+        return [
+          lineName(departure),
+          destinationName(departure),
+          date.getTime()
+        ].join("|");
+      }
+
+      function selectDepartures(departures, config, now) {
+        var filtered = [];
+        var seen = {};
+        var i;
+
+        now = now || new Date();
+
+        for (i = 0; i < departures.length; i++) {
+          var departure = departures[i];
+          var date = departureDate(departure);
+          var key;
+
+          if (!matchesConfig(departure, config)) continue;
+          if (!date || isNaN(date.getTime())) continue;
+          if (date.getTime() < now.getTime() - 60000) continue;
+
+          key = departureKey(departure, date);
+          if (seen[key]) continue;
+          seen[key] = true;
+          filtered.push(departure);
+        }
+
+        filtered.sort(function (a, b) {
+          return departureDate(a).getTime() - departureDate(b).getTime();
+        });
+
+        return filtered.slice(0, config.maximum);
       }
 
       function delayMinutes(departure) {
@@ -1306,16 +1346,9 @@
         return false;
       }
 
-      function renderDepartures(targetId, departures, config) {
-        var filtered = [];
+      function renderDepartures(targetId, departures, config, now) {
+        var filtered = selectDepartures(departures, config, now);
         var i;
-
-        for (i = 0; i < departures.length; i++) {
-          if (matchesConfig(departures[i], config)) {
-            filtered.push(departures[i]);
-          }
-          if (filtered.length >= config.maximum) break;
-        }
 
         if (!filtered.length) {
           document.getElementById(targetId).innerHTML =
@@ -1326,7 +1359,7 @@
         var html = '<table class="departures">';
         for (i = 0; i < filtered.length; i++) {
           var departure = filtered[i];
-          var minutes = minutesUntil(departureDate(departure));
+          var minutes = minutesUntil(departureDate(departure), now);
           var delay = delayMinutes(departure);
           var rowClass = isProminentDeparture(departure, config) ?
             ' class="preferred-departure"' : "";
@@ -1519,6 +1552,27 @@
         return type ? String(type).toLowerCase() : "";
       }
 
+      function departureQueryDate(date) {
+        return date.getFullYear() + pad(date.getMonth() + 1) + pad(date.getDate());
+      }
+
+      function departureQueryTime(date) {
+        return pad(date.getHours()) + pad(date.getMinutes());
+      }
+
+      function departureRequestUrl(stopId, startAt) {
+        return TRANSPORT_BASE + "/XML_DM_REQUEST" +
+          "?outputFormat=RapidJSON" +
+          "&stateless=1" +
+          "&type_dm=any" +
+          "&name_dm=" + encodeURIComponent(stopId) +
+          "&mode=direct" +
+          "&useRealtime=1" +
+          "&limit=" + DEPARTURE_QUERY_LIMIT +
+          "&itdDate=" + departureQueryDate(startAt) +
+          "&itdTime=" + departureQueryTime(startAt);
+      }
+
       function extractDepartures(response) {
         if (!response) return [];
 
@@ -1602,33 +1656,57 @@
             return;
           }
 
-          var url =
-            TRANSPORT_BASE + "/XML_DM_REQUEST" +
-            "?outputFormat=RapidJSON" +
-            "&stateless=1" +
-            "&type_dm=any" +
-            "&name_dm=" + encodeURIComponent(stopId) +
-            "&mode=direct" +
-            "&useRealtime=1" +
-            "&limit=30";
+          var now = new Date();
+          var departures = [];
 
-          requestJSON(url, function (departureError, response) {
-            if (departureError || !response) {
-              document.getElementById(config.target).innerHTML =
-                '<div class="error">Departures unavailable.</div>';
-              return;
-            }
+          function finish() {
+            renderDepartures(config.target, departures, config, now);
+            setUpdated();
+          }
 
-            var departures = [];
+          function addDepartures(response) {
             var rawDepartures = extractDepartures(response);
             var i;
             for (i = 0; i < rawDepartures.length; i++) {
               departures.push(normalizeEFADeparture(rawDepartures[i]));
             }
+          }
 
-            renderDepartures(config.target, departures, config);
-            setUpdated();
-          });
+          function loadDeparturesFrom(startAt, daysAhead) {
+            requestJSON(departureRequestUrl(stopId, startAt), function (departureError, response) {
+              if (departureError || !response) {
+                if (departures.length) {
+                  finish();
+                  return;
+                }
+
+                document.getElementById(config.target).innerHTML =
+                  '<div class="error">Departures unavailable.</div>';
+                return;
+              }
+
+              addDepartures(response);
+
+              if (selectDepartures(departures, config, now).length >= config.maximum ||
+                  daysAhead >= DEPARTURE_LOOKAHEAD_DAYS) {
+                finish();
+                return;
+              }
+
+              loadDeparturesFrom(
+                new Date(
+                  now.getFullYear(),
+                  now.getMonth(),
+                  now.getDate() + daysAhead + 1,
+                  0,
+                  0
+                ),
+                daysAhead + 1
+              );
+            });
+          }
+
+          loadDeparturesFrom(now, 0);
         });
       }
 
@@ -1670,8 +1748,12 @@
           productMode: productMode,
           matchesConfig: matchesConfig,
           isProminentDeparture: isProminentDeparture,
+          selectDepartures: selectDepartures,
           lineName: lineName,
           departureDate: departureDate,
+          departureQueryDate: departureQueryDate,
+          departureQueryTime: departureQueryTime,
+          departureRequestUrl: departureRequestUrl,
           weatherIcon: weatherIcon,
           modeIconSVG: modeIconSVG,
           parseDateTime: parseDateTime,
