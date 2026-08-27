@@ -33,6 +33,35 @@ function loadHooks() {
   return window.__dashboardTestHooks;
 }
 
+function loadWorkerHooks() {
+  const source = fs.readFileSync(
+    path.join(__dirname, "cloudflare-worker-mvv.js"),
+    "utf8"
+  ).replace("export default", "const worker =");
+  const context = {
+    globalThis: {},
+    URL,
+    Headers,
+    Response,
+    TextDecoder,
+    Uint8Array,
+    Date,
+    Math,
+    fetch: async function () {
+      throw new Error("unexpected fetch");
+    }
+  };
+
+  vm.runInNewContext(
+    source +
+      "\nglobalThis.__workerTestHooks = {" +
+      "roundDownFiveMinutes, radvorFileName, parseRadvorRainAt" +
+      "};",
+    context
+  );
+  return context.globalThis.__workerTestHooks;
+}
+
 test("extract stop locations and station ids from EFA responses", function () {
   const hooks = loadHooks();
   const response = {
@@ -247,6 +276,102 @@ test("weather icon mapping returns stable inline SVG icons", function () {
   assert.match(hooks.weatherIcon(3), /^<svg[\s\S]*<path/);
   assert.match(hooks.weatherIcon(61), /M13 30l-2 5/);
   assert.match(hooks.weatherIcon(95), /M21 27l-4 6/);
+});
+
+test("rain helpers show near-term probability and next rain today", function () {
+  const hooks = loadHooks();
+  const now = hooks.parseDateTime("2026-08-27T10:20:00");
+  const forecast = {
+    hourly: {
+      time: [
+        "2026-08-27T10:00",
+        "2026-08-27T11:00",
+        "2026-08-27T12:00",
+        "2026-08-27T13:00"
+      ],
+      precipitation_probability: [5, 60, 70, 20],
+      precipitation: [0, 0, 0, 0]
+    },
+    minutely_15: {
+      time: [
+        "2026-08-27T10:15",
+        "2026-08-27T10:30",
+        "2026-08-27T10:45"
+      ],
+      precipitation: [0.02, 0, 0.06],
+      rain: [0, 0, 0]
+    }
+  };
+
+  assert.equal(
+    hooks.formatRainChance(hooks.forecastPercentAt(forecast.hourly, now, 1)),
+    "60%"
+  );
+  assert.equal(
+    hooks.formatRainChance(hooks.forecastPercentAt(forecast.hourly, now, 2)),
+    "70%"
+  );
+  assert.equal(
+    hooks.formatRainTime(hooks.nextRainToday(forecast, now)),
+    "10:45"
+  );
+});
+
+test("rain status labels distinguish dry, drizzle and rain", function () {
+  const hooks = loadHooks();
+
+  assert.equal(hooks.rainStatusLabel(null), "--");
+  assert.equal(hooks.rainStatusLabel(0), "trocken");
+  assert.equal(hooks.rainStatusLabel(0.04), "Niesel");
+  assert.equal(hooks.rainStatusLabel(0.1), "Regen");
+  assert.equal(
+    hooks.rainAmountFromItem(
+      { precipitation: [0.04], rain: [0.2], showers: [0] },
+      0
+    ),
+    0.2
+  );
+});
+
+test("DWD radar helpers build filenames and decode fixed-grid values", function () {
+  const hooks = loadWorkerHooks();
+
+  function radvorFixture(rawValue, flags) {
+    const header = Buffer.from(
+      "RE270900100000826BY      0VS 5SW  P42001HPR E-03INT  60GP 3x 3VV 000" +
+        "\x03",
+      "ascii"
+    );
+    const data = Buffer.alloc(3 * 3 * 2);
+    const x = 1;
+    const y = 1;
+    const width = 3;
+    const height = 3;
+    const fileRow = height - 1 - y;
+    const index = fileRow * width + x;
+    data[index * 2] = rawValue & 0xff;
+    data[index * 2 + 1] = ((rawValue >> 8) & 0x0f) | flags;
+    return Buffer.concat([header, data]);
+  }
+
+  assert.equal(
+    hooks.roundDownFiveMinutes(
+      new Date("2026-08-27T09:07:30Z")
+    ).toISOString(),
+    "2026-08-27T09:05:00.000Z"
+  );
+  assert.equal(
+    hooks.radvorFileName(new Date("2026-08-27T09:05:00Z"), 5),
+    "RE2608270905_005.gz"
+  );
+  assert.equal(
+    Math.round(hooks.parseRadvorRainAt(radvorFixture(1234, 0), 1, 1) * 1000),
+    1234
+  );
+  assert.equal(
+    hooks.parseRadvorRainAt(radvorFixture(1234, 0x20), 1, 1),
+    0
+  );
 });
 
 test("light and dark mode controls use SVG instead of emoji glyphs", function () {

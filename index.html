@@ -222,6 +222,10 @@
       margin-top: 22px;
     }
 
+    .weather-details + .weather-details {
+      margin-top: 12px;
+    }
+
     .weather-detail {
       display: table-cell;
       width: 33%;
@@ -545,8 +549,23 @@
 
         <div class="weather-details">
           <div class="weather-detail">
-            <strong id="rain-now">--%</strong>
-            <span>Regen heute</span>
+            <strong id="rain-now">--</strong>
+            <span id="rain-now-label">Jetzt</span>
+          </div>
+          <div class="weather-detail">
+            <strong id="rain-1h">--%</strong>
+            <span>Regen +1h</span>
+          </div>
+          <div class="weather-detail">
+            <strong id="rain-2h">--%</strong>
+            <span>Regen +2h</span>
+          </div>
+        </div>
+
+        <div class="weather-details">
+          <div class="weather-detail">
+            <strong id="rain-next">--</strong>
+            <span>Regen ab</span>
           </div>
           <div class="weather-detail">
             <strong id="wind">-- km/h</strong>
@@ -594,14 +613,17 @@
 
       var WEATHER_QUERY =
         "?latitude=48.113&longitude=11.481" +
-        "&current=temperature_2m,weather_code" +
+        "&current=temperature_2m,weather_code,precipitation,rain,showers,snowfall" +
+        "&hourly=precipitation_probability,precipitation,rain,showers,snowfall" +
+        "&minutely_15=precipitation,rain,showers,snowfall" +
         "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,wind_speed_10m_max,sunrise,sunset" +
-        "&timezone=Europe%2FBerlin&forecast_days=3";
+        "&timezone=Europe%2FBerlin&forecast_days=3&forecast_minutely_15=96";
       var WEATHER_URL =
         "https://api.open-meteo.com/v1/forecast" + WEATHER_QUERY;
 
       var TRANSPORT_BASE = "https://mvv-worker.mykhailo-levytskyi.workers.dev";
       var WEATHER_PROXY_URL = TRANSPORT_BASE + "/weather" + WEATHER_QUERY;
+      var DWD_RAIN_URL = TRANSPORT_BASE + "/dwd-rain";
       var HOLIDAY_BASE = "https://openholidaysapi.org";
       var HOLIDAY_PROXY_BASE = TRANSPORT_BASE + "/holidays";
       var DEPARTURE_QUERY_LIMIT = 60;
@@ -936,6 +958,127 @@
         });
       }
 
+      function requestDwdRain(callback) {
+        requestJSON(DWD_RAIN_URL, callback);
+      }
+
+      function numberOrNull(value) {
+        if (value === null || value === undefined || value === "") return null;
+        var number = Number(value);
+        return isFinite(number) ? number : null;
+      }
+
+      function rainAmountFromItem(item, index) {
+        var fields = ["precipitation", "rain", "showers", "snowfall"];
+        var amount = null;
+        var i;
+
+        if (!item) return null;
+
+        for (i = 0; i < fields.length; i++) {
+          var source = item[fields[i]];
+          var value = typeof index === "number" && source &&
+            typeof source.length === "number" ? source[index] : source;
+          var number = numberOrNull(value);
+
+          if (number !== null) {
+            amount = amount === null ? number : Math.max(amount, number);
+          }
+        }
+
+        return amount;
+      }
+
+      function rainStatusLabel(amount) {
+        var number = numberOrNull(amount);
+        if (number === null) return "--";
+        if (number >= 0.1) return "Regen";
+        if (number > 0) return "Niesel";
+        return "trocken";
+      }
+
+      function formatRainChance(value) {
+        var number = numberOrNull(value);
+        return number === null ? "--%" : Math.round(number) + "%";
+      }
+
+      function forecastIndexAt(times, now, hoursAhead) {
+        var target = new Date(now.getTime() + hoursAhead * 3600000);
+        var bestIndex = -1;
+        var bestDistance = null;
+        var i;
+
+        if (!times) return -1;
+
+        for (i = 0; i < times.length; i++) {
+          var date = parseDateTime(times[i]);
+          if (!date || date < now) continue;
+
+          var distance = Math.abs(date.getTime() - target.getTime());
+          if (bestDistance === null || distance < bestDistance) {
+            bestDistance = distance;
+            bestIndex = i;
+          }
+        }
+
+        return bestIndex;
+      }
+
+      function forecastPercentAt(hourly, now, hoursAhead) {
+        if (!hourly || !hourly.time || !hourly.precipitation_probability) {
+          return null;
+        }
+
+        var index = forecastIndexAt(hourly.time, now, hoursAhead);
+        return index < 0 ? null :
+          numberOrNull(hourly.precipitation_probability[index]);
+      }
+
+      function nextRainToday(data, now) {
+        var minutely = data && data.minutely_15;
+        var hourly = data && data.hourly;
+        var i;
+
+        if (minutely && minutely.time) {
+          for (i = 0; i < minutely.time.length; i++) {
+            var minuteDate = parseDateTime(minutely.time[i]);
+            if (
+              minuteDate &&
+              minuteDate >= now &&
+              sameLocalDate(minuteDate, now) &&
+              rainAmountFromItem(minutely, i) >= 0.05
+            ) {
+              return minuteDate;
+            }
+          }
+        }
+
+        if (hourly && hourly.time) {
+          for (i = 0; i < hourly.time.length; i++) {
+            var hourDate = parseDateTime(hourly.time[i]);
+            var chance = hourly.precipitation_probability ?
+              numberOrNull(hourly.precipitation_probability[i]) : null;
+            var amount = rainAmountFromItem(hourly, i);
+
+            if (
+              hourDate &&
+              hourDate >= now &&
+              sameLocalDate(hourDate, now) &&
+              ((amount !== null && amount >= 0.1) ||
+                (chance !== null && chance >= 50))
+            ) {
+              return hourDate;
+            }
+          }
+        }
+
+        return null;
+      }
+
+      function formatRainTime(date) {
+        return date ? pad(date.getHours()) + ":" + pad(date.getMinutes()) : "--";
+      }
+
       function loadWeather() {
         requestWeather(function (error, data) {
           if (error || !data || !data.current) {
@@ -944,7 +1087,11 @@
             document.getElementById("temperature").innerHTML = "--°";
             document.getElementById("temp-high").innerHTML = "--°";
             document.getElementById("temp-low").innerHTML = "--°";
-            document.getElementById("rain-now").innerHTML = "--%";
+            document.getElementById("rain-now").innerHTML = "--";
+            document.getElementById("rain-now-label").innerHTML = "Jetzt";
+            document.getElementById("rain-1h").innerHTML = "--%";
+            document.getElementById("rain-2h").innerHTML = "--%";
+            document.getElementById("rain-next").innerHTML = "--";
             document.getElementById("wind").innerHTML = "-- km/h";
             document.getElementById("uv-index").innerHTML = "--";
             document.getElementById("sunrise").innerHTML = "--:--";
@@ -952,6 +1099,7 @@
             return;
           }
 
+          var now = new Date();
           var current = data.current;
           var daily = data.daily || {};
           sunrises = daily.sunrise || [];
@@ -963,9 +1111,7 @@
             daily.uv_index_max[0] : 0;
           var windMax = daily.wind_speed_10m_max && daily.wind_speed_10m_max.length ?
             daily.wind_speed_10m_max[0] : 0;
-          var rainToday = daily.precipitation_probability_max &&
-            daily.precipitation_probability_max.length ?
-            daily.precipitation_probability_max[0] : 0;
+          var nextRain = nextRainToday(data, now);
 
           document.getElementById("temperature").innerHTML =
             Math.round(current.temperature_2m) + "°";
@@ -977,7 +1123,14 @@
           document.getElementById("temp-low").innerHTML = low + "°";
 
           document.getElementById("rain-now").innerHTML =
-            Math.round(rainToday) + "%";
+            rainStatusLabel(rainAmountFromItem(current));
+          document.getElementById("rain-now-label").innerHTML = "Jetzt";
+          document.getElementById("rain-1h").innerHTML =
+            formatRainChance(forecastPercentAt(data.hourly, now, 1));
+          document.getElementById("rain-2h").innerHTML =
+            formatRainChance(forecastPercentAt(data.hourly, now, 2));
+          document.getElementById("rain-next").innerHTML =
+            formatRainTime(nextRain);
 
           document.getElementById("wind").innerHTML =
             Math.round(windMax) + " km/h";
@@ -989,6 +1142,17 @@
           document.getElementById("sunset").innerHTML =
             timeFromISO(sunsets[0]);
           setUpdated();
+
+          requestDwdRain(function (radarError, radar) {
+            if (radarError || !radar) return;
+
+            var rainMm = numberOrNull(radar.rainMm);
+            document.getElementById("rain-now").innerHTML =
+              rainMm === null ?
+                (radar.rainNow ? "Regen" : "trocken") :
+                rainStatusLabel(rainMm);
+            document.getElementById("rain-now-label").innerHTML = "Radar";
+          });
         });
       }
 
@@ -1757,6 +1921,12 @@
           weatherIcon: weatherIcon,
           modeIconSVG: modeIconSVG,
           parseDateTime: parseDateTime,
+          rainAmountFromItem: rainAmountFromItem,
+          rainStatusLabel: rainStatusLabel,
+          formatRainChance: formatRainChance,
+          forecastPercentAt: forecastPercentAt,
+          nextRainToday: nextRainToday,
+          formatRainTime: formatRainTime,
           isNightBySun: isNightBySun,
           nextSunTransition: nextSunTransition,
           filterMunichPublicHolidays: filterMunichPublicHolidays,
