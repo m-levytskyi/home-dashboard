@@ -279,6 +279,16 @@
       margin-top: 5px;
     }
 
+    .store-warning {
+      margin: -11px 0 24px;
+      padding: 11px 14px;
+      background: #f4cf4b;
+      color: #302400;
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+
     .departures {
       width: 100%;
       border-collapse: collapse;
@@ -376,6 +386,11 @@
 
     body.night-mode .late {
       color: #e1b06e;
+    }
+
+    body.night-mode .store-warning {
+      background: #d8aa22;
+      color: #1d1600;
     }
 
     body.night-mode .night-toggle {
@@ -532,6 +547,8 @@
         </div>
         <div id="date">Wird geladen…</div>
       </header>
+
+      <div id="store-warning" class="store-warning" role="status" hidden></div>
 
       <section class="section">
         <div class="label">Wetter</div>
@@ -1222,6 +1239,32 @@
         return result;
       }
 
+      function storeClosedTomorrow(items, today) {
+        var tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+        var i;
+
+        if (tomorrow.getDay() === 0) return null;
+
+        for (i = 0; i < items.length; i++) {
+          if (parseDateOnly(items[i].startDate) <= tomorrow &&
+              parseDateOnly(items[i].endDate) >= tomorrow) {
+            return items[i];
+          }
+        }
+
+        return null;
+      }
+
+      function renderStoreWarning(items) {
+        var target = document.getElementById("store-warning");
+        var holiday = storeClosedTomorrow(items, new Date());
+
+        target.hidden = !holiday;
+        target.innerHTML = holiday ?
+          "Achtung: Morgen bleiben die Geschäfte wegen " +
+          escapeHTML(localizedHolidayName(holiday)) + " geschlossen." : "";
+      }
+
       function renderHoliday(targetId, items, school) {
         var today = new Date();
         today = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -1288,13 +1331,16 @@
             if (error || !data) {
               document.getElementById("public-holiday").innerHTML =
                 '<div class="error">Feiertage nicht verfügbar.</div>';
+              renderStoreWarning([]);
               return;
             }
+            var publicHolidays = filterMunichPublicHolidays(data);
             renderHoliday(
               "public-holiday",
-              filterMunichPublicHolidays(data),
+              publicHolidays,
               false
             );
+            renderStoreWarning(publicHolidays);
             setUpdated();
           }
         );
@@ -1930,7 +1976,8 @@
           isNightBySun: isNightBySun,
           nextSunTransition: nextSunTransition,
           filterMunichPublicHolidays: filterMunichPublicHolidays,
-          isMunichPublicHoliday: isMunichPublicHoliday
+          isMunichPublicHoliday: isMunichPublicHoliday,
+          storeClosedTomorrow: storeClosedTomorrow
         };
       }
 

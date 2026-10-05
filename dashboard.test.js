@@ -448,3 +448,21 @@ test("filter Munich public holidays excludes Augsburg Friedensfest", function ()
   assert.equal(filtered.length, 1);
   assert.equal(filtered[0].name[0].text, "Tag der Deutschen Einheit");
 });
+
+test("stores close tomorrow for public holidays but not Sundays", function () {
+  const hooks = loadHooks();
+  const holiday = {
+    startDate: "2026-10-03",
+    endDate: "2026-10-03",
+    name: [{ language: "DE", text: "Tag der Deutschen Einheit" }]
+  };
+
+  assert.equal(
+    hooks.storeClosedTomorrow([holiday], new Date("2026-10-02T12:00")),
+    holiday
+  );
+  assert.equal(
+    hooks.storeClosedTomorrow([holiday], new Date("2026-10-03T12:00")),
+    null
+  );
+});
