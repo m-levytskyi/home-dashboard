@@ -8,6 +8,7 @@
  *   /dwd-rain
  *   /holidays/public
  *   /holidays/school
+ *   /arena/home-matches
  *
  * Verwendung im Dashboard:
  * var TRANSPORT_BASE = "https://dein-worker.dein-account.workers.dev";
@@ -50,6 +51,10 @@ export default {
 
     if (requestUrl.pathname === "/holidays/school") {
       return proxyHolidays(requestUrl, "SchoolHolidays");
+    }
+
+    if (requestUrl.pathname === "/arena/home-matches") {
+      return proxyArenaHomeMatches();
     }
 
     if (!allowedPaths.includes(requestUrl.pathname)) {
@@ -285,6 +290,68 @@ async function proxyHolidays(requestUrl, endpoint) {
       502
     );
   }
+}
+
+const FCB_CALENDAR_URL =
+  "https://i.cal.to/ical/2/fcbayern/spielplan/12345.12345-54321.ics";
+
+async function proxyArenaHomeMatches() {
+  try {
+    const response = await fetch(FCB_CALENDAR_URL, {
+      headers: { "Accept": "text/calendar" },
+      cf: { cacheEverything: true, cacheTtl: 300 }
+    });
+    if (!response.ok) throw new Error("Kalender antwortet mit " + response.status);
+    return jsonResponse(parseFcbHomeEvents(await response.text()), 200, 300);
+  } catch (error) {
+    return jsonResponse(
+      { error: "Der FC-Bayern-Spielplan ist nicht verfügbar.", detail: String(error) },
+      502,
+      60
+    );
+  }
+}
+
+// shortcut: handles the FC Bayern calovo ICS subset; revisit if that feed changes format.
+function parseFcbHomeEvents(ics) {
+  const lines = String(ics).replace(/\r?\n[ \t]/g, "").split(/\r?\n/);
+  const events = [];
+  let event = null;
+
+  for (const line of lines) {
+    if (line === "BEGIN:VEVENT") {
+      event = {};
+      continue;
+    }
+    if (line === "END:VEVENT") {
+      if (event && event.location && event.location.indexOf("Allianz Arena") !== -1 &&
+          event.date && event.title && event.status !== "CANCELLED") {
+        events.push(event);
+      }
+      event = null;
+      continue;
+    }
+    if (!event) continue;
+
+    const colon = line.indexOf(":");
+    if (colon < 0) continue;
+    const key = line.slice(0, colon).split(";")[0];
+    const value = line.slice(colon + 1).replace(/\\([nN,;\\])/g, function (_, char) {
+      return char === "n" || char === "N" ? " " : char;
+    });
+
+    if (key === "DTSTART") {
+      const dateTime = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})\d{2}Z?)?$/.exec(value);
+      if (dateTime) {
+        event.date = dateTime[1] + "-" + dateTime[2] + "-" + dateTime[3];
+        if (dateTime[4]) event.time = dateTime[4] + ":" + dateTime[5];
+      }
+    } else if (key === "LOCATION") event.location = value;
+    else if (key === "SUMMARY") event.title = value.replace(/^\*/, "");
+    else if (key === "STATUS") event.status = value;
+  }
+
+  return events;
 }
 
 function corsHeaders() {

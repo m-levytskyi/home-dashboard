@@ -289,6 +289,33 @@
       line-height: 1.35;
     }
 
+    .arena-warning {
+      margin: -12px 0 24px;
+      padding: 11px 14px;
+      background: #dce8f7;
+      color: #142b4b;
+      font-size: 16px;
+      line-height: 1.4;
+    }
+
+    .arena-warning strong { font-weight: 700; }
+
+    .arena-demo {
+      max-width: 760px;
+      margin: 24px auto 0;
+      padding: 16px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.18);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .arena-demo label { display: block; margin: 10px 0 5px; font-weight: 600; }
+    .arena-demo input, .arena-demo textarea { width: 100%; padding: 8px; font: inherit; }
+    .arena-demo textarea { min-height: 110px; font-family: monospace; }
+    .arena-demo button { margin-top: 10px; padding: 8px 12px; font: inherit; }
+    body.night-mode .arena-warning { background: #27374d; color: #edf3fc; }
+
     .departures {
       width: 100%;
       border-collapse: collapse;
@@ -549,6 +576,7 @@
       </header>
 
       <div id="store-warning" class="store-warning" role="status" hidden></div>
+      <div id="arena-warning" class="arena-warning" role="status" hidden></div>
 
       <section class="section">
         <div class="label">Wetter</div>
@@ -624,6 +652,16 @@
     </div>
   </main>
 
+  <section id="arena-demo" class="arena-demo" hidden aria-label="Allianz-Arena Banner testen">
+    <strong>Testmodus: Allianz-Arena-Banner</strong>
+    <label for="demo-now">Simuliertes Datum und Uhrzeit</label>
+    <input id="demo-now" type="datetime-local">
+    <label for="demo-events">Events (JSON, Datum als JJJJ-MM-TT)</label>
+    <textarea id="demo-events" spellcheck="false"></textarea>
+    <label><input id="demo-stores-closed" type="checkbox" checked style="width:auto"> Geschäfte heute und morgen geschlossen</label>
+    <button id="demo-reset" type="button">Beispiel wiederherstellen</button>
+  </section>
+
   <script>
     (function () {
       "use strict";
@@ -643,6 +681,7 @@
       var DWD_RAIN_URL = TRANSPORT_BASE + "/dwd-rain";
       var HOLIDAY_BASE = "https://openholidaysapi.org";
       var HOLIDAY_PROXY_BASE = TRANSPORT_BASE + "/holidays";
+      var ARENA_EVENTS_URL = TRANSPORT_BASE + "/arena/home-matches";
       var DEPARTURE_QUERY_LIMIT = 60;
       var DEPARTURE_LOOKAHEAD_DAYS = 7;
 
@@ -719,8 +758,8 @@
         return number < 10 ? "0" + number : String(number);
       }
 
-      function updateClock() {
-        var now = new Date();
+      function updateClock(now) {
+        now = now || new Date();
         var days = [
           "Sonntag", "Montag", "Dienstag", "Mittwoch",
           "Donnerstag", "Freitag", "Samstag"
@@ -1253,6 +1292,78 @@
         }
 
         return null;
+      }
+
+      function arenaEventsForDays(items, now) {
+        var start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        var end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 2);
+        return (Array.isArray(items) ? items : []).filter(function (event) {
+          var date = parseDateOnly(event.date);
+          return event.title && !isNaN(date.getTime()) &&
+            localDateString(date) === event.date && date >= start && date < end;
+        }).sort(function (a, b) {
+          return (a.date + (a.time || "")).localeCompare(b.date + (b.time || ""));
+        });
+      }
+
+      function renderArenaWarning(items, now) {
+        var target = document.getElementById("arena-warning");
+        var events = arenaEventsForDays(items, now || new Date());
+        target.hidden = !events.length;
+        target.innerHTML = events.length ? "<strong>Allianz Arena:</strong> " +
+          events.map(function (event) {
+            var day = event.date === localDateString(now || new Date()) ? "Heute" : "Morgen";
+            return day + (event.time ? " " + escapeHTML(event.time) : "") + " – " +
+              escapeHTML(event.title);
+          }).join(" <span aria-hidden=\"true\">·</span> ") : "";
+      }
+
+      function loadArenaEvents() {
+        requestJSON(ARENA_EVENTS_URL, function (error, events) {
+          renderArenaWarning(error ? [] : events, new Date());
+        });
+      }
+
+      function initArenaDemo() {
+        var params = typeof location !== "undefined" ? location.search : "";
+        var panel = document.getElementById("arena-demo");
+        if (params.indexOf("arenaDemo=1") === -1) return false;
+        panel.hidden = false;
+
+        var nowInput = document.getElementById("demo-now");
+        var eventsInput = document.getElementById("demo-events");
+        var storesInput = document.getElementById("demo-stores-closed");
+        function dateTimeValue(date) {
+          return localDateString(date) + "T" + pad(date.getHours()) + ":" + pad(date.getMinutes());
+        }
+        function reset() {
+          var now = new Date();
+          nowInput.value = dateTimeValue(now);
+          var tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+          eventsInput.value = JSON.stringify([
+            { date: localDateString(now), time: "18:00", title: "FC Bayern gegen Arsenal" },
+            { date: localDateString(tomorrow), time: "14:00", title: "Eminem – Konzert" }
+          ], null, 2);
+          storesInput.checked = true;
+          render();
+        }
+        function render() {
+          var now = new Date(nowInput.value);
+          var events = [];
+          try { events = JSON.parse(eventsInput.value); } catch (ignore) {}
+          now = isNaN(now.getTime()) ? new Date() : now;
+          updateClock(now);
+          renderArenaWarning(events, now);
+          var store = document.getElementById("store-warning");
+          store.hidden = !storesInput.checked;
+          store.innerHTML = storesInput.checked ? "Geschäfte sind heute und morgen geschlossen." : "";
+        }
+        nowInput.onchange = render;
+        eventsInput.oninput = render;
+        storesInput.onchange = render;
+        document.getElementById("demo-reset").onclick = reset;
+        reset();
+        return true;
       }
 
       function renderStoreWarning(items) {
@@ -1977,16 +2088,21 @@
           nextSunTransition: nextSunTransition,
           filterMunichPublicHolidays: filterMunichPublicHolidays,
           isMunichPublicHoliday: isMunichPublicHoliday,
-          storeClosedTomorrow: storeClosedTomorrow
+          storeClosedTomorrow: storeClosedTomorrow,
+          arenaEventsForDays: arenaEventsForDays
         };
       }
 
       if (!(typeof window !== "undefined" && window.__HOME_DASHBOARD_TEST__)) {
-        updateClock();
+        var arenaDemo = initArenaDemo();
+        if (!arenaDemo) updateClock();
         fitClock();
-        loadWeather();
-        loadTransport();
-        loadHolidays();
+        if (!arenaDemo) {
+          loadWeather();
+          loadTransport();
+          loadHolidays();
+          loadArenaEvents();
+        }
         driftForScreenProtection();
 
         document.getElementById("night-toggle").onclick = toggleNightMode;
@@ -1998,10 +2114,13 @@
           }, false);
         }
 
-        setInterval(updateClock, 1000);
-        setInterval(loadTransport, 60000);
-        setInterval(loadWeather, 900000);
-        setInterval(loadHolidays, 21600000);
+        if (!arenaDemo) setInterval(updateClock, 1000);
+        if (!arenaDemo) {
+          setInterval(loadTransport, 60000);
+          setInterval(loadWeather, 900000);
+          setInterval(loadHolidays, 21600000);
+          setInterval(loadArenaEvents, 900000);
+        }
         setInterval(driftForScreenProtection, 300000);
       }
     }());

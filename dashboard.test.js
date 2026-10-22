@@ -55,7 +55,7 @@ function loadWorkerHooks() {
   vm.runInNewContext(
     source +
       "\nglobalThis.__workerTestHooks = {" +
-      "roundDownFiveMinutes, radvorFileName, parseRadvorRainAt" +
+      "roundDownFiveMinutes, radvorFileName, parseRadvorRainAt, parseFcbHomeEvents" +
       "};",
     context
   );
@@ -465,4 +465,62 @@ test("stores close tomorrow for public holidays but not Sundays", function () {
     hooks.storeClosedTomorrow([holiday], new Date("2026-10-03T12:00")),
     null
   );
+});
+
+test("arena banner events are limited to today and tomorrow", function () {
+  const hooks = loadHooks();
+  const now = new Date("2026-10-22T12:00:00");
+  const events = [
+    { date: "2026-10-22", time: "18:00", title: "FC Bayern gegen Arsenal" },
+    { date: "2026-10-23", time: "14:00", title: "Eminem" },
+    { date: "2026-10-24", time: "12:00", title: "Außerhalb des Zeitfensters" }
+  ];
+
+  assert.deepEqual(
+    hooks.arenaEventsForDays(events, now).map(function (event) { return event.title; }),
+    ["FC Bayern gegen Arsenal", "Eminem"]
+  );
+});
+
+test("FC Bayern calendar parser keeps Allianz Arena home matches only", function () {
+  const events = loadWorkerHooks().parseFcbHomeEvents([
+    "BEGIN:VEVENT",
+    "DTSTART;TZID=Europe/Berlin:20261022T180000",
+    "LOCATION:Allianz Arena\\, München",
+    "SUMMARY:FC Bayern München - FC Arsenal",
+    "STATUS:CONFIRMED",
+    "END:VEVENT",
+    "BEGIN:VEVENT",
+    "DTSTART;VALUE=DATE:20261023",
+    "LOCATION:Allianz Arena\\, München",
+    "SUMMARY:*FC Bayern München - Gegner",
+    "DESCRIPTION:Termin folgt",
+    "END:VEVENT",
+    "BEGIN:VEVENT",
+    "DTSTART;TZID=Europe/Berlin:20261024T150000",
+    "LOCATION:Auswärtsstadion",
+    "SUMMARY:Auswärtsspiel",
+    "END:VEVENT",
+    "BEGIN:VEVENT",
+    "DTSTART;TZID=Europe/Berlin:20261025T150000",
+    "LOCATION:Allianz Arena\\, München",
+    "SUMMARY:Abgesagt",
+    "STATUS:CANCELLED",
+    "END:VEVENT"
+  ].join("\r\n"));
+
+  assert.deepEqual(JSON.parse(JSON.stringify(events)), [
+    {
+      date: "2026-10-22",
+      time: "18:00",
+      location: "Allianz Arena, München",
+      title: "FC Bayern München - FC Arsenal",
+      status: "CONFIRMED"
+    },
+    {
+      date: "2026-10-23",
+      location: "Allianz Arena, München",
+      title: "FC Bayern München - Gegner"
+    }
+  ]);
 });
